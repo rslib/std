@@ -1,0 +1,38 @@
+---
+# Based on LLVM/Google style with practical adjustments
+BasedOnStyle: LLVM
+
+# Indentation
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 120
+
+# Braces
+BreakBeforeBraces: Linux
+# Linux style: functions on new line, everything else same line
+
+# Pointers and References
+PointerAlignment: Right
+DerivePointerAlignment: false
+
+# Spacing
+SpaceAfterCStyleCast: false
+SpaceBeforeParens: ControlStatements
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+
+# Alignment
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignTrailingComments: true
+
+# Line breaks
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AlwaysBreakAfterReturnType: None
+
+# Includes
+SortIncludes: true
+IncludeBlocks: Regroup

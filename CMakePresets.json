@@ -1,0 +1,91 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 21,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "default",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build/${presetName}/install"
+      }
+    },
+    {
+      "name": "debug",
+      "displayName": "Debug",
+      "inherits": "default",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "release",
+      "displayName": "Release",
+      "inherits": "default",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "relwithdebinfo",
+      "displayName": "RelWithDebInfo",
+      "inherits": "default",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "RS_STD_FORCE_BUILD_SQLITE3": "ON",
+        "RS_STD_LOG_LEVEL": "TRACE"
+      }
+    },
+    {
+      "name": "test",
+      "displayName": "Test",
+      "inherits": "relwithdebinfo",
+      "cacheVariables": {
+        "RS_STD_BUILD_TESTS": "ON",
+        "CMAKE_PREFIX_PATH": "${sourceDir}/build/${presetName}/install"
+      }
+    },
+    {
+      "name": "test-tracing",
+      "displayName": "Test with Tracing",
+      "inherits": "test",
+      "cacheVariables": {
+        "RS_STD_BUILD_TESTS": "ON",
+        "RS_STD_ENABLE_TRACE_LOGS": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "debug",
+      "configurePreset": "debug"
+    },
+    {
+      "name": "release",
+      "configurePreset": "release"
+    },
+    {
+      "name": "relwithdebinfo",
+      "configurePreset": "relwithdebinfo"
+    },
+    {
+      "name": "test",
+      "configurePreset": "test"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "test",
+      "configurePreset": "test",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}
