@@ -82,6 +82,11 @@
               enable = true;
               package = treefmtEval.config.build.wrapper;
             };
+            cocogitto = {
+              enable = true;
+              entry = "${pkgs.cocogitto}/bin/cog verify --file";
+              stages = [ "commit-msg" ];
+            };
           };
         };
 
@@ -107,6 +112,7 @@
                 alejandra
                 nil
                 clang-analyzer
+                cocogitto
                 treefmtEval.config.build.wrapper
               ]
               ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
