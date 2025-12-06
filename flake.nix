@@ -31,6 +31,7 @@
 
         # Custom packages
         monocypher = pkgs.callPackage ./nix/monocypher.nix { };
+        unity-test = pkgs.callPackage ./nix/unity-test.nix { };
 
         treefmtEval = treefmt-nix.lib.evalModule pkgs {
           projectRootFile = "flake.nix";
@@ -143,6 +144,33 @@
         checks = {
           formatting = treefmtEval.config.build.check self;
           pre-commit-check = pre-commit-check;
+          tests = pkgs.stdenv.mkDerivation {
+            pname = "rs_std-tests";
+            version = "0.1.0";
+
+            src = ./.;
+
+            inherit buildInputs;
+            nativeBuildInputs = nativeBuildInputs ++ [
+              unity-test
+            ];
+
+            cmakeFlags = [
+              "-DRS_STD_BUILD_TESTS=ON"
+              "-DRS_STD_BUILD_SHARED=ON"
+              "-DRS_STD_BUILD_STATIC=ON"
+            ];
+
+            doCheck = true;
+            checkPhase = ''
+              ctest --output-on-failure
+            '';
+
+            installPhase = ''
+              mkdir -p $out
+              touch $out/tests-passed
+            '';
+          };
         };
 
         packages.default = pkgs.stdenv.mkDerivation {

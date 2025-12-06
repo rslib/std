@@ -1,4 +1,3 @@
-#include <pwd.h>
 #include <rs/std/error.h>
 #include <rs/std/fs/path.h>
 #include <rs/std/os/env.h>
@@ -6,9 +5,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <direct.h>
+#include <io.h>
+#include <shlobj.h>
+#include <windows.h>
+#define F_OK 0
+#define access _access
+#else
+#include <pwd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#endif
 
 // ============================================================================
 // Platform detection
@@ -32,22 +43,40 @@ rs_result_t rs_path_get_home(rs_string_t *out)
 {
     RS_CHECK(out != NULL, RS_ERR_INVALID, "Output parameter is NULL");
 
-    // Clear the output string
     rs_string_clear(out);
 
-    // Try HOME environment variable first
+#ifdef _WIN32
+    rs_string_view_t userprofile = rs_env_get_view("USERPROFILE");
+    if (!rs_sv_is_empty(userprofile)) {
+        return rs_string_push_buf(out, rs_sv_data(userprofile), rs_sv_len(userprofile));
+    }
+
+    rs_string_view_t homedrive = rs_env_get_view("HOMEDRIVE");
+    rs_string_view_t homepath = rs_env_get_view("HOMEPATH");
+    if (!rs_sv_is_empty(homedrive) && !rs_sv_is_empty(homepath)) {
+        RS_TRY(rs_string_push_buf(out, rs_sv_data(homedrive), rs_sv_len(homedrive)));
+        return rs_string_push_buf(out, rs_sv_data(homepath), rs_sv_len(homepath));
+    }
+
+    char path[MAX_PATH];
+    if (SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_PROFILE, NULL, 0, path))) {
+        return rs_string_push_cstr(out, path);
+    }
+
+    return RS_ERROR_RET(RS_ERR_NOTFOUND, "Could not determine home directory");
+#else
     rs_string_view_t home = rs_env_get_view("HOME");
     if (!rs_sv_is_empty(home)) {
         return rs_string_push_buf(out, rs_sv_data(home), rs_sv_len(home));
     }
 
-    // Fall back to getpwuid
     struct passwd *pw = getpwuid(getuid());
     if (pw && pw->pw_dir) {
         return rs_string_push_cstr(out, pw->pw_dir);
     }
 
     return RS_ERROR_RET(RS_ERR_NOTFOUND, "Could not determine home directory");
+#endif
 }
 
 rs_result_t rs_path_get_temp(rs_string_t *out)
@@ -105,18 +134,15 @@ static rs_result_t expand_tilde_to_string(rs_string_t *out, rs_string_view_t pat
         return rs_string_push_buf(out, path_str, path_len);
     }
 
-    // Handle "~" or "~/"
     if (path_len == 1 || RS_IS_PATH_SEP(path_str[1])) {
         RS_TRY(rs_path_get_home(out));
 
         if (path_len > 1) {
-            // Append the rest of the path (skip the ~/)
             return rs_string_push_buf(out, path_str + 2, path_len - 2);
         }
         return RS_OK;
     }
 
-    // Handle "~username"
     const char *sep = path_str + 1;
     rs_size_t username_len = 0;
     while (username_len < path_len - 1 && !RS_IS_PATH_SEP(sep[username_len])) {
@@ -131,14 +157,23 @@ static rs_result_t expand_tilde_to_string(rs_string_t *out, rs_string_view_t pat
     memcpy(username, path_str + 1, username_len);
     username[username_len] = '\0';
 
+#ifdef _WIN32
+    char user_path[MAX_PATH];
+    DWORD size = MAX_PATH;
+    snprintf(user_path, MAX_PATH, "C:\\Users\\%s", username);
+    DWORD attrs = GetFileAttributesA(user_path);
+    if (attrs == INVALID_FILE_ATTRIBUTES || !(attrs & FILE_ATTRIBUTE_DIRECTORY)) {
+        return RS_ERROR_RET(RS_ERR_NOTFOUND, "User '%s' not found", username);
+    }
+    RS_TRY(rs_string_push_cstr(out, user_path));
+#else
     struct passwd *pw = getpwnam(username);
     if (!pw || !pw->pw_dir) {
         return RS_ERROR_RET(RS_ERR_NOTFOUND, "User '%s' not found", username);
     }
-
     RS_TRY(rs_string_push_cstr(out, pw->pw_dir));
+#endif
 
-    // Append rest of path if present
     if (username_len + 1 < path_len) {
         return rs_string_push_buf(out, path_str + username_len + 2, path_len - username_len - 2);
     }
@@ -419,16 +454,20 @@ int rs_path_has_extension(rs_string_view_t path, const char *ext)
 
 int rs_path_exists(rs_string_view_t path)
 {
-    // Need null-terminated string for access()
     char *path_cstr = rs_sv_to_cstr(path);
     if (!path_cstr) {
         return -1;
     }
 
+#ifdef _WIN32
+    DWORD attrs = GetFileAttributesA(path_cstr);
+    free(path_cstr);
+    return attrs != INVALID_FILE_ATTRIBUTES ? 1 : 0;
+#else
     int result = access(path_cstr, F_OK);
     free(path_cstr);
-
     return result == 0 ? 1 : 0;
+#endif
 }
 
 int rs_path_is_file(rs_string_view_t path)
@@ -489,14 +528,15 @@ int rs_path_is_symlink(rs_string_view_t path)
     }
 
 #ifdef _WIN32
-    // Windows doesn't have a simple way to check for symlinks via GetFileAttributes
-    // We'd need to use GetFileAttributesEx or DeviceIoControl
-    // For now, return 0 (not a symlink) on Windows
+    DWORD attrs = GetFileAttributesA(path_cstr);
     free(path_cstr);
-    return 0;
+    if (attrs == INVALID_FILE_ATTRIBUTES) {
+        return 0;
+    }
+    return (attrs & FILE_ATTRIBUTE_REPARSE_POINT) != 0 ? 1 : 0;
 #else
     struct stat st;
-    int result = lstat(path_cstr, &st); // Use lstat to not follow symlinks
+    int result = lstat(path_cstr, &st);
     free(path_cstr);
     if (result != 0) {
         return 0;

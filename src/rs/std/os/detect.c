@@ -7,12 +7,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifndef _WIN32
 #include <sys/utsname.h>
+#endif
 
 rs_os_type_t rs_os_detect(void)
 {
 #ifdef _WIN32
     return RS_OS_WINDOWS;
+#elif defined(__APPLE__)
+    return RS_OS_MACOS;
+#elif defined(__linux__)
+    return RS_OS_LINUX;
 #else
     struct utsname uname_data;
 
@@ -20,12 +27,10 @@ rs_os_type_t rs_os_detect(void)
         return RS_OS_UNKNOWN;
     }
 
-    // Check if macOS (Darwin)
     if (strcmp(uname_data.sysname, "Darwin") == 0) {
         return RS_OS_MACOS;
     }
 
-    // Check if Linux
     if (strcmp(uname_data.sysname, "Linux") == 0) {
         return RS_OS_LINUX;
     }
@@ -51,14 +56,18 @@ const char *rs_os_to_string(rs_os_type_t os)
 
 const char *rs_os_detect_distro(void)
 {
-    // Static buffer to hold the distro name
     static char distro_name[64] = {0};
     static int detected = 0;
 
-    // Cache the result - only detect once
     if (detected) {
         return distro_name;
     }
+
+#ifdef _WIN32
+    detected = 1;
+    strcpy(distro_name, "windows");
+    return distro_name;
+#endif
 
     rs_string_view_t os_release_path = rs_sv_from_cstr("/etc/os-release");
 

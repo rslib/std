@@ -37,6 +37,8 @@ function(rs_need_unity)
     SOVERSION 2
     BUILD_SHARED OFF
     BUILD_STATIC ON
+    FIND_PACKAGE_NAME Unity
+    FIND_PACKAGE_TARGETS Unity::Unity Unity::unity_static Unity::unity_shared
   )
 endfunction()
 

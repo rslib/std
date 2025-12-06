@@ -14,17 +14,12 @@ set(RS_STD_PACKAGES
 
 # List of target aliases to verify for each package
 # Format: "package:target_alias"
-# The exported targets follow two naming patterns:
-#  1. package::shared, package::static, package::package (e.g., rs_std::shared)
-#  2. rs::package_shared, rs::package_static, rs::package (e.g., rs::rs_std_shared)
+# The exported targets follow the naming pattern:
+#   package::shared, package::static, package::package (e.g., rs_std::shared)
 set(RS_STD_PACKAGE_TARGETS
     "rs_std:rs_std::shared"
     "rs_std:rs_std::static"
     "rs_std:rs_std::rs_std"
-    "rs_std:rs::rs_std_shared"
-    "rs_std:rs::rs_std_static"
-    "rs_std:rs::rs_std"
-    # Add more target aliases as needed
 )
 
 message(STATUS "")
@@ -43,29 +38,18 @@ set_tests_properties(SetupInstall PROPERTIES FIXTURES_SETUP PackagesInstalled)
 
 # Create tests for each package using CMake script mode
 foreach(pkg ${RS_STD_PACKAGES})
-    # Test CMake package discovery for shared variant
+    # Test CMake package discovery (unified config)
     add_test(
-        NAME "PackageDiscovery_${pkg}_shared_cmake"
+        NAME "PackageDiscovery_${pkg}_cmake"
         COMMAND ${CMAKE_COMMAND}
             -DTEST_TYPE=cmake
             -DLIBRARY_NAME=${pkg}
             -DCMAKE_PREFIX_PATH=${CMAKE_INSTALL_PREFIX}
             -P ${CMAKE_CURRENT_SOURCE_DIR}/test_package_discovery.cmake
     )
-    set_tests_properties("PackageDiscovery_${pkg}_shared_cmake" PROPERTIES FIXTURES_REQUIRED PackagesInstalled)
+    set_tests_properties("PackageDiscovery_${pkg}_cmake" PROPERTIES FIXTURES_REQUIRED PackagesInstalled)
 
-    # Test CMake package discovery for static variant
-    add_test(
-        NAME "PackageDiscovery_${pkg}_static_cmake"
-        COMMAND ${CMAKE_COMMAND}
-            -DTEST_TYPE=cmake
-            -DLIBRARY_NAME=${pkg}
-            -DCMAKE_PREFIX_PATH=${CMAKE_INSTALL_PREFIX}
-            -P ${CMAKE_CURRENT_SOURCE_DIR}/test_package_discovery.cmake
-    )
-    set_tests_properties("PackageDiscovery_${pkg}_static_cmake" PROPERTIES FIXTURES_REQUIRED PackagesInstalled)
-
-    # Test pkg-config discovery
+    # Test pkg-config discovery (shared)
     add_test(
         NAME "PackageDiscovery_${pkg}_pkgconfig"
         COMMAND ${CMAKE_COMMAND}
@@ -75,6 +59,17 @@ foreach(pkg ${RS_STD_PACKAGES})
             -P ${CMAKE_CURRENT_SOURCE_DIR}/test_package_discovery.cmake
     )
     set_tests_properties("PackageDiscovery_${pkg}_pkgconfig" PROPERTIES FIXTURES_REQUIRED PackagesInstalled)
+
+    # Test pkg-config discovery (static)
+    add_test(
+        NAME "PackageDiscovery_${pkg}_static_pkgconfig"
+        COMMAND ${CMAKE_COMMAND}
+            -DTEST_TYPE=pkgconfig
+            -DLIBRARY_NAME=${pkg}_static
+            -DPKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/test_package_discovery.cmake
+    )
+    set_tests_properties("PackageDiscovery_${pkg}_static_pkgconfig" PROPERTIES FIXTURES_REQUIRED PackagesInstalled)
 endforeach()
 
 # Create tests for target aliases

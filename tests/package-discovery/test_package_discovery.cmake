@@ -16,72 +16,48 @@ if(TEST_TYPE STREQUAL "pkgconfig")
   # Test pkg-config discovery
   message(STATUS "Testing pkg-config discovery for ${LIBRARY_NAME}...")
 
-  # Set PKG_CONFIG_PATH environment variable
-  set(ENV{PKG_CONFIG_PATH} "${PKG_CONFIG_PATH}")
+  # Prepend our path to existing PKG_CONFIG_PATH to find both our .pc files
+  # and system dependency .pc files (important for Nix builds)
+  if(DEFINED ENV{PKG_CONFIG_PATH} AND NOT "$ENV{PKG_CONFIG_PATH}" STREQUAL "")
+    set(ENV{PKG_CONFIG_PATH} "${PKG_CONFIG_PATH}:$ENV{PKG_CONFIG_PATH}")
+  else()
+    set(ENV{PKG_CONFIG_PATH} "${PKG_CONFIG_PATH}")
+  endif()
 
   find_package(PkgConfig REQUIRED)
-  pkg_check_modules(${LIBRARY_NAME_UPPER}_SHARED ${LIBRARY_NAME}_shared)
-  pkg_check_modules(${LIBRARY_NAME_UPPER}_STATIC ${LIBRARY_NAME}_static)
+  pkg_check_modules(${LIBRARY_NAME_UPPER} ${LIBRARY_NAME})
 
-  if(NOT ${LIBRARY_NAME_UPPER}_SHARED_FOUND)
+  if(NOT ${LIBRARY_NAME_UPPER}_FOUND)
     message(
       FATAL_ERROR
-      "❌ pkg-config discovery failed: ${LIBRARY_NAME}_shared not found"
+      "pkg-config discovery failed: ${LIBRARY_NAME} not found"
     )
   endif()
 
-  if(NOT ${LIBRARY_NAME_UPPER}_STATIC_FOUND)
-    message(
-      FATAL_ERROR
-      "❌ pkg-config discovery failed: ${LIBRARY_NAME}_static not found"
-    )
-  endif()
-
-  message(STATUS "✅ pkg-config discovery successful for ${LIBRARY_NAME}")
-  message(STATUS "   Shared version: ${${LIBRARY_NAME_UPPER}_SHARED_VERSION}")
-  message(STATUS "   Static version: ${${LIBRARY_NAME_UPPER}_STATIC_VERSION}")
+  message(STATUS "pkg-config discovery successful for ${LIBRARY_NAME}")
+  message(STATUS "   Version: ${${LIBRARY_NAME_UPPER}_VERSION}")
 elseif(TEST_TYPE STREQUAL "cmake")
   # Test CMake find_package discovery
   message(STATUS "Testing CMake find_package discovery for ${LIBRARY_NAME}...")
 
-  # Check if shared config file exists
+  # Check if unified config file exists
   find_file(
-    ${LIBRARY_NAME_UPPER}_SHARED_CONFIG
-    NAMES ${LIBRARY_NAME}_sharedConfig.cmake
+    ${LIBRARY_NAME_UPPER}_CONFIG
+    NAMES ${LIBRARY_NAME}Config.cmake
     PATHS ${CMAKE_PREFIX_PATH}
-    PATH_SUFFIXES lib/cmake/${LIBRARY_NAME}_shared
+    PATH_SUFFIXES lib/cmake/${LIBRARY_NAME}
     NO_DEFAULT_PATH
   )
 
-  if(NOT ${LIBRARY_NAME_UPPER}_SHARED_CONFIG)
+  if(NOT ${LIBRARY_NAME_UPPER}_CONFIG)
     message(
       FATAL_ERROR
-      "❌ CMake discovery failed: ${LIBRARY_NAME}_sharedConfig.cmake not found in ${CMAKE_PREFIX_PATH}/lib/cmake/${LIBRARY_NAME}_shared"
+      "CMake discovery failed: ${LIBRARY_NAME}Config.cmake not found in ${CMAKE_PREFIX_PATH}/lib/cmake/${LIBRARY_NAME}"
     )
   endif()
 
-  # Check if static config file exists
-  find_file(
-    ${LIBRARY_NAME_UPPER}_STATIC_CONFIG
-    NAMES ${LIBRARY_NAME}_staticConfig.cmake
-    PATHS ${CMAKE_PREFIX_PATH}
-    PATH_SUFFIXES lib/cmake/${LIBRARY_NAME}_static
-    NO_DEFAULT_PATH
-  )
-
-  if(NOT ${LIBRARY_NAME_UPPER}_STATIC_CONFIG)
-    message(
-      FATAL_ERROR
-      "❌ CMake discovery failed: ${LIBRARY_NAME}_staticConfig.cmake not found in ${CMAKE_PREFIX_PATH}/lib/cmake/${LIBRARY_NAME}_static"
-    )
-  endif()
-
-  message(
-    STATUS
-    "✅ CMake find_package discovery successful for ${LIBRARY_NAME}"
-  )
-  message(STATUS "   Shared config: ${${LIBRARY_NAME_UPPER}_SHARED_CONFIG}")
-  message(STATUS "   Static config: ${${LIBRARY_NAME_UPPER}_STATIC_CONFIG}")
+  message(STATUS "CMake find_package discovery successful for ${LIBRARY_NAME}")
+  message(STATUS "   Config: ${${LIBRARY_NAME_UPPER}_CONFIG}")
 elseif(TEST_TYPE STREQUAL "dependency")
   # Test dependency discovery (dependencies may not follow _shared/_static naming)
   message(STATUS "Testing dependency discovery for ${LIBRARY_NAME}...")

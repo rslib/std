@@ -26,7 +26,6 @@ stdenv.mkDerivation rec {
     "-DMONOCYPHER_SHARED=ON"
   ];
 
-  # Monocypher doesn't have a CMakeLists.txt by default, so we create one
   preConfigure = ''
         cat > CMakeLists.txt << 'CMAKEFILE'
         cmake_minimum_required(VERSION 3.14)

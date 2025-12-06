@@ -804,7 +804,7 @@ function(rs_create_unified_library_config)
   endif()
 
   string(APPEND PC_STATIC "Libs: \${libdir}/lib${CFG_NAME}.a\n")
-  if(CFG_PKG_CONFIG_LIBS_PRIVATE)
+  if(CFG_PKG_CONFIG_LIBS_PRIVATE AND NOT WIN32)
     string(APPEND PC_STATIC "Libs.private: ${CFG_PKG_CONFIG_LIBS_PRIVATE}\n")
   endif()
   string(APPEND PC_STATIC "Cflags: -I\${includedir}\n")
