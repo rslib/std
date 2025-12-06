@@ -98,14 +98,12 @@ function(rs_need_sqlite3)
       $<$<NOT:$<PLATFORM_ID:Windows>>:m>
     FIND_PACKAGE_NAME SQLite3
     FIND_PACKAGE_TARGETS SQLite::SQLite3
+    PKG_CONFIG_NAME sqlite3
+    SKIP_FIND_PACKAGE_VAR RS_STD_FORCE_BUILD_SQLITE3
   )
 
-  # Set legacy variable for compatibility
-  if(SQLite3_FROM_SYSTEM)
-    set(SQLite3_CPM FALSE PARENT_SCOPE)
-  else()
-    set(SQLite3_CPM TRUE PARENT_SCOPE)
-  endif()
+  # Propagate FROM_SYSTEM to parent scope
+  set(SQLite3_FROM_SYSTEM ${SQLite3_FROM_SYSTEM} PARENT_SCOPE)
 endfunction()
 
 #[=[
@@ -133,7 +131,11 @@ function(rs_need_monocypher)
     SOVERSION 4
     FIND_PACKAGE_NAME monocypher
     FIND_PACKAGE_TARGETS monocypher::monocypher
+    PKG_CONFIG_NAME monocypher
   )
+
+  # Propagate FROM_SYSTEM to parent scope
+  set(Monocypher_FROM_SYSTEM ${Monocypher_FROM_SYSTEM} PARENT_SCOPE)
 endfunction()
 
 #[=[
@@ -177,12 +179,8 @@ function(rs_need_curl)
     endif()
   endif()
 
-  # Set legacy variable for compatibility
-  if(CURL_FROM_SYSTEM)
-    set(CURL_CPM FALSE PARENT_SCOPE)
-  else()
-    set(CURL_CPM TRUE PARENT_SCOPE)
-  endif()
+  # Propagate FROM_SYSTEM to parent scope
+  set(CURL_FROM_SYSTEM ${CURL_FROM_SYSTEM} PARENT_SCOPE)
 endfunction()
 
 #[=[
@@ -207,5 +205,9 @@ function(rs_need_xxhash)
     SOVERSION 0
     FIND_PACKAGE_NAME xxHash
     FIND_PACKAGE_TARGETS xxHash::xxhash
+    PKG_CONFIG_NAME libxxhash
   )
+
+  # Propagate FROM_SYSTEM to parent scope
+  set(xxHash_FROM_SYSTEM ${xxHash_FROM_SYSTEM} PARENT_SCOPE)
 endfunction()

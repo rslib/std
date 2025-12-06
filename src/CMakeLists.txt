@@ -124,4 +124,14 @@ rs_create_library(
     PUBLIC_INCLUDE_DIRS
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    FIND_DEPENDENCIES
+      monocypher
+      xxHash
+      SQLite3
+    PKG_CONFIG_LIBS_PRIVATE
+      "-lpthread -ldl -lm"
+    STATIC_PKG_CONFIG_DEPS
+      "Monocypher:monocypher:monocypher_static"
+      "xxHash:libxxhash:libxxhash_static"
+      "SQLite3:sqlite3:sqlite3_static"
 )

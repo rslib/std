@@ -51,9 +51,12 @@ Usage:
     [PROPERTIES prop1 val1 prop2 val2 ...] # Additional target properties
 
     # Package config
-    [PKG_CONFIG_REQUIRES "dep1 dep2"]      # pkg-config Requires
-    [PKG_CONFIG_LIBS_PRIVATE "libs"]       # pkg-config Libs.private
-    [PKG_CONFIG_CFLAGS_PRIVATE "flags"]    # pkg-config Cflags.private
+    [PKG_CONFIG_REQUIRES "dep1 dep2"]           # pkg-config Requires (always needed)
+    [PKG_CONFIG_LIBS_PRIVATE "-lpthread -ldl"]  # pkg-config Libs.private (for static linking)
+    [PKG_CONFIG_CFLAGS_PRIVATE "flags"]         # pkg-config Cflags.private
+    [STATIC_PKG_CONFIG_DEPS                     # Dependencies for static pkg-config
+      "VarName:system_pc_name:cpm_pc_name"      # e.g., "Monocypher:monocypher:monocypher_static"
+    ]
 
     # CMake config dependencies (for programmatic generation)
     [FIND_DEPENDENCIES dep1 dep2 ...]      # Dependencies to find_dependency() in config
@@ -97,6 +100,7 @@ function(rs_create_library)
     PRIVATE_COMPILE_DEFINITIONS
     PROPERTIES
     FIND_DEPENDENCIES
+    STATIC_PKG_CONFIG_DEPS
   )
 
   cmake_parse_arguments(
@@ -273,6 +277,8 @@ function(rs_create_library)
       ${LIB_URL}
       PKG_CONFIG_REQUIRES
       ${LIB_PKG_CONFIG_REQUIRES}
+      PKG_CONFIG_REQUIRES_PRIVATE
+      ${LIB_PKG_CONFIG_REQUIRES_PRIVATE}
       PKG_CONFIG_LIBS_PRIVATE
       ${LIB_PKG_CONFIG_LIBS_PRIVATE}
       PKG_CONFIG_CFLAGS_PRIVATE
@@ -321,36 +327,14 @@ function(rs_create_library)
     list(APPEND CREATED_TARGETS ${SHARED_TARGET_NAME})
     set(${LIB_NAME}_SHARED_TARGET ${SHARED_TARGET_NAME} PARENT_SCOPE)
 
-    # Export and install
+    # Export and install (to unified export)
     install(
       TARGETS ${SHARED_TARGET_NAME}
-      EXPORT ${LIB_NAME}_sharedTargets
+      EXPORT ${LIB_NAME}Targets
       LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
       ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
       RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
       INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    )
-
-    # Create package configs for shared
-    _rs_create_library_package_configs(
-      NAME
-      ${LIB_NAME}_shared
-      VERSION
-      ${LIB_VERSION}
-      DESCRIPTION
-      "${LIB_DESCRIPTION} (shared)"
-      URL
-      ${LIB_URL}
-      PKG_CONFIG_REQUIRES
-      ${LIB_PKG_CONFIG_REQUIRES}
-      PKG_CONFIG_LIBS_PRIVATE
-      ${LIB_PKG_CONFIG_LIBS_PRIVATE}
-      PKG_CONFIG_CFLAGS_PRIVATE
-      ${LIB_PKG_CONFIG_CFLAGS_PRIVATE}
-      FIND_DEPENDENCIES
-      ${LIB_FIND_DEPENDENCIES}
-      OUTPUT_NAME
-      ${BASE_NAME}
     )
   endif()
 
@@ -388,36 +372,14 @@ function(rs_create_library)
     list(APPEND CREATED_TARGETS ${STATIC_TARGET_NAME})
     set(${LIB_NAME}_STATIC_TARGET ${STATIC_TARGET_NAME} PARENT_SCOPE)
 
-    # Export and install
+    # Export and install (to unified export)
     install(
       TARGETS ${STATIC_TARGET_NAME}
-      EXPORT ${LIB_NAME}_staticTargets
+      EXPORT ${LIB_NAME}Targets
       LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
       ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
       RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
       INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    )
-
-    # Create package configs for static
-    _rs_create_library_package_configs(
-      NAME
-      ${LIB_NAME}_static
-      VERSION
-      ${LIB_VERSION}
-      DESCRIPTION
-      "${LIB_DESCRIPTION} (static)"
-      URL
-      ${LIB_URL}
-      PKG_CONFIG_REQUIRES
-      ${LIB_PKG_CONFIG_REQUIRES}
-      PKG_CONFIG_LIBS_PRIVATE
-      ${LIB_PKG_CONFIG_LIBS_PRIVATE}
-      PKG_CONFIG_CFLAGS_PRIVATE
-      ${LIB_PKG_CONFIG_CFLAGS_PRIVATE}
-      FIND_DEPENDENCIES
-      ${LIB_FIND_DEPENDENCIES}
-      OUTPUT_NAME
-      ${BASE_NAME}
     )
   endif()
 
@@ -437,9 +399,11 @@ function(rs_create_library)
       DESCRIPTION "${LIB_DESCRIPTION}"
       URL "${LIB_URL}"
       PKG_CONFIG_REQUIRES "${LIB_PKG_CONFIG_REQUIRES}"
+      PKG_CONFIG_LIBS_PRIVATE "${LIB_PKG_CONFIG_LIBS_PRIVATE}"
       FIND_DEPENDENCIES ${LIB_FIND_DEPENDENCIES}
       BUILD_SHARED ${BUILD_SHARED_LIB}
       BUILD_STATIC ${BUILD_STATIC_LIB}
+      STATIC_PKG_CONFIG_DEPS ${LIB_STATIC_PKG_CONFIG_DEPS}
     )
 
     # Create unified alias for build tree (${LIB_NAMESPACE}::${LIB_NAME})
@@ -469,9 +433,11 @@ function(_rs_create_library_package_configs)
     DESCRIPTION
     URL
     PKG_CONFIG_REQUIRES
+    PKG_CONFIG_REQUIRES_PRIVATE
     PKG_CONFIG_LIBS_PRIVATE
     PKG_CONFIG_CFLAGS_PRIVATE
     OUTPUT_NAME
+    LIBRARY_TYPE
   )
   set(multiValueArgs FIND_DEPENDENCIES)
 
@@ -505,9 +471,26 @@ function(_rs_create_library_package_configs)
     string(APPEND PC_CONTENT "Requires: ${PKG_PKG_CONFIG_REQUIRES}\n")
   endif()
 
+  if(PKG_PKG_CONFIG_REQUIRES_PRIVATE)
+    string(
+      APPEND PC_CONTENT
+      "Requires.private: ${PKG_PKG_CONFIG_REQUIRES_PRIVATE}\n"
+    )
+  endif()
+
+  # For static libraries, use full path to .a file to ensure static linking
+  # For shared libraries, use -l flag which finds .dylib/.so first
+  if(PKG_LIBRARY_TYPE STREQUAL "STATIC")
+    string(APPEND PC_CONTENT "Libs: \${libdir}/lib${PKG_OUTPUT_NAME}.a\n")
+  else()
+    string(APPEND PC_CONTENT "Libs: -L\${libdir} -l${PKG_OUTPUT_NAME}\n")
+  endif()
+
   if(PKG_PKG_CONFIG_LIBS_PRIVATE)
     string(APPEND PC_CONTENT "Libs.private: ${PKG_PKG_CONFIG_LIBS_PRIVATE}\n")
   endif()
+
+  string(APPEND PC_CONTENT "Cflags: -I\${includedir}\n")
 
   if(PKG_PKG_CONFIG_CFLAGS_PRIVATE)
     string(
@@ -515,9 +498,6 @@ function(_rs_create_library_package_configs)
       "Cflags.private: ${PKG_PKG_CONFIG_CFLAGS_PRIVATE}\n"
     )
   endif()
-
-  string(APPEND PC_CONTENT "Libs: -L\${libdir} -l${PKG_OUTPUT_NAME}\n")
-  string(APPEND PC_CONTENT "Cflags: -I\${includedir}\n")
 
   set(PC_FILE "${CMAKE_CURRENT_BINARY_DIR}/${PKG_NAME}.pc")
   file(WRITE ${PC_FILE} ${PC_CONTENT})
@@ -583,25 +563,29 @@ function(_rs_create_library_package_configs)
 endfunction()
 
 #[=[
-Creates a unified wrapper config for a library that has shared/static variants.
-This allows users to discover the library without specifying the variant.
+Creates a unified config for a library that has shared/static variants.
 
 Usage:
   rs_create_unified_library_config(
-    NAME library_name                 # e.g., "cfgmgr"
-    VERSION version                   # Package version
-    [DESCRIPTION "desc"]              # Package description
-    [URL "https://..."]              # Package URL
-    [PKG_CONFIG_REQUIRES "deps"]     # pkg-config dependencies
-    [FIND_DEPENDENCIES dep1 dep2]    # CMake dependencies to find
-    [BUILD_SHARED ON|OFF]            # Whether shared variant exists
-    [BUILD_STATIC ON|OFF]            # Whether static variant exists
+    NAME library_name
+    VERSION version
+    [DESCRIPTION "desc"]
+    [URL "https://..."]
+    [PKG_CONFIG_REQUIRES "deps"]           # For shared (rs_std.pc)
+    [PKG_CONFIG_LIBS_PRIVATE "libs"]       # For static (rs_std_static.pc)
+    [FIND_DEPENDENCIES dep1 dep2]
+    [BUILD_SHARED ON|OFF]
+    [BUILD_STATIC ON|OFF]
+    [STATIC_PKG_CONFIG_DEPS                # Dependencies for static pkg-config
+      "VarName:system_pc_name:cpm_pc_name" # e.g., "Monocypher:monocypher:monocypher_static"
+      ...
+    ]
   )
 
 This creates:
-- A unified CMake config file (NAME/NAMEConfig.cmake)
-- A unified pkg-config file (NAME.pc)
-- Interface library targets that aggregate the variants
+- Single CMake config (NAME/NAMEConfig.cmake) with all targets
+- NAME.pc for shared linking
+- NAME_static.pc for static linking (with correct Requires based on system vs CPM)
 #]=]
 function(rs_create_unified_library_config)
   set(options "")
@@ -612,10 +596,11 @@ function(rs_create_unified_library_config)
     DESCRIPTION
     URL
     PKG_CONFIG_REQUIRES
+    PKG_CONFIG_LIBS_PRIVATE
     BUILD_SHARED
     BUILD_STATIC
   )
-  set(multiValueArgs FIND_DEPENDENCIES)
+  set(multiValueArgs FIND_DEPENDENCIES STATIC_PKG_CONFIG_DEPS)
 
   cmake_parse_arguments(
     CFG
@@ -637,7 +622,6 @@ function(rs_create_unified_library_config)
     set(CFG_DESCRIPTION "${CFG_NAME} library")
   endif()
 
-  # Determine which variants exist
   if(NOT DEFINED CFG_BUILD_SHARED)
     set(CFG_BUILD_SHARED ON)
   endif()
@@ -645,256 +629,187 @@ function(rs_create_unified_library_config)
     set(CFG_BUILD_STATIC ON)
   endif()
 
-  # Determine preferred type (shared takes precedence if both exist)
-  if(CFG_BUILD_SHARED)
-    set(PREFERRED_TYPE "shared")
-  elseif(CFG_BUILD_STATIC)
-    set(PREFERRED_TYPE "static")
-  else()
-    message(
-      FATAL_ERROR
-      "At least one of BUILD_SHARED or BUILD_STATIC must be ON"
-    )
-  endif()
-
   # ==========================================================================
   # Create unified CMake config
   # ==========================================================================
-  set(UNIFIED_CONFIG_CONTENT "")
-  string(APPEND UNIFIED_CONFIG_CONTENT "@PACKAGE_INIT@\n\n")
-  string(
-    APPEND UNIFIED_CONFIG_CONTENT
-    "# ${CFG_NAME} unified package config\n\n"
-  )
+  set(CONFIG_CONTENT "")
+  string(APPEND CONFIG_CONTENT "@PACKAGE_INIT@\n\n")
+  string(APPEND CONFIG_CONTENT "# ${CFG_NAME} package config\n\n")
 
-  # Add find_dependency calls if specified
+  # Add find_dependency calls
   if(CFG_FIND_DEPENDENCIES)
-    string(
-      APPEND UNIFIED_CONFIG_CONTENT
-      "include(CMakeFindDependencyMacro)\n\n"
-    )
+    string(APPEND CONFIG_CONTENT "include(CMakeFindDependencyMacro)\n\n")
     foreach(dep ${CFG_FIND_DEPENDENCIES})
-      string(APPEND UNIFIED_CONFIG_CONTENT "find_dependency(${dep})\n")
+      string(APPEND CONFIG_CONTENT "find_dependency(${dep})\n")
     endforeach()
-    string(APPEND UNIFIED_CONFIG_CONTENT "\n")
+    string(APPEND CONFIG_CONTENT "\n")
   endif()
 
-  # Include variant-specific configs
-  string(APPEND UNIFIED_CONFIG_CONTENT "# Include variant-specific configs\n")
+  # Include the targets file
+  string(APPEND CONFIG_CONTENT "# Include targets\n")
+  string(
+    APPEND CONFIG_CONTENT
+    "include(\"\${CMAKE_CURRENT_LIST_DIR}/${CFG_NAME}Targets.cmake\")\n\n"
+  )
+
+  # Create convenience aliases
+  string(APPEND CONFIG_CONTENT "# Create convenience aliases\n")
   if(CFG_BUILD_SHARED)
     string(
-      APPEND UNIFIED_CONFIG_CONTENT
-      "include(\${CMAKE_CURRENT_LIST_DIR}/../${CFG_NAME}_shared/${CFG_NAME}_sharedConfig.cmake OPTIONAL)\n"
+      APPEND CONFIG_CONTENT
+      "if(TARGET ${CFG_NAME}_shared AND NOT TARGET ${CFG_NAME}::shared)\n"
     )
+    string(
+      APPEND CONFIG_CONTENT
+      "  add_library(${CFG_NAME}::shared ALIAS ${CFG_NAME}_shared)\n"
+    )
+    string(APPEND CONFIG_CONTENT "endif()\n")
   endif()
   if(CFG_BUILD_STATIC)
     string(
-      APPEND UNIFIED_CONFIG_CONTENT
-      "include(\${CMAKE_CURRENT_LIST_DIR}/../${CFG_NAME}_static/${CFG_NAME}_staticConfig.cmake OPTIONAL)\n"
+      APPEND CONFIG_CONTENT
+      "if(TARGET ${CFG_NAME}_static AND NOT TARGET ${CFG_NAME}::static)\n"
     )
+    string(
+      APPEND CONFIG_CONTENT
+      "  add_library(${CFG_NAME}::static ALIAS ${CFG_NAME}_static)\n"
+    )
+    string(APPEND CONFIG_CONTENT "endif()\n")
   endif()
-  string(APPEND UNIFIED_CONFIG_CONTENT "\n")
+  string(APPEND CONFIG_CONTENT "\n")
 
-  # Create standard aliases
-  string(
-    APPEND UNIFIED_CONFIG_CONTENT
-    "# Create standard aliases for the specific library types\n"
-  )
+  # Create default alias (shared preferred)
+  string(APPEND CONFIG_CONTENT "# Default target (shared preferred)\n")
   if(CFG_BUILD_SHARED)
     string(
-      APPEND UNIFIED_CONFIG_CONTENT
-      "if(TARGET ${CFG_NAME}_shared::${CFG_NAME}_shared)\n"
+      APPEND CONFIG_CONTENT
+      "if(TARGET ${CFG_NAME}_shared AND NOT TARGET ${CFG_NAME}::${CFG_NAME})\n"
     )
     string(
-      APPEND UNIFIED_CONFIG_CONTENT
-      "  if(NOT TARGET ${CFG_NAME}::shared)\n"
+      APPEND CONFIG_CONTENT
+      "  add_library(${CFG_NAME}::${CFG_NAME} ALIAS ${CFG_NAME}_shared)\n"
     )
-    string(
-      APPEND UNIFIED_CONFIG_CONTENT
-      "    add_library(${CFG_NAME}::shared ALIAS ${CFG_NAME}_shared::${CFG_NAME}_shared)\n"
-    )
-    string(APPEND UNIFIED_CONFIG_CONTENT "  endif()\n")
-    string(APPEND UNIFIED_CONFIG_CONTENT "endif()\n\n")
-  endif()
-
-  if(CFG_BUILD_STATIC)
-    string(
-      APPEND UNIFIED_CONFIG_CONTENT
-      "if(TARGET ${CFG_NAME}_static::${CFG_NAME}_static)\n"
-    )
-    string(
-      APPEND UNIFIED_CONFIG_CONTENT
-      "  if(NOT TARGET ${CFG_NAME}::static)\n"
-    )
-    string(
-      APPEND UNIFIED_CONFIG_CONTENT
-      "    add_library(${CFG_NAME}::static ALIAS ${CFG_NAME}_static::${CFG_NAME}_static)\n"
-    )
-    string(APPEND UNIFIED_CONFIG_CONTENT "  endif()\n")
-    string(APPEND UNIFIED_CONFIG_CONTENT "endif()\n\n")
-  endif()
-
-  # Create unified alias pointing to preferred variant
-  string(
-    APPEND UNIFIED_CONFIG_CONTENT
-    "# Create unified alias that points to the preferred library type (${PREFERRED_TYPE})\n"
-  )
-  if(CFG_BUILD_SHARED)
-    string(
-      APPEND UNIFIED_CONFIG_CONTENT
-      "if(TARGET ${CFG_NAME}_shared::${CFG_NAME}_shared)\n"
-    )
-    string(
-      APPEND UNIFIED_CONFIG_CONTENT
-      "  if(NOT TARGET ${CFG_NAME}::${CFG_NAME})\n"
-    )
-    string(
-      APPEND UNIFIED_CONFIG_CONTENT
-      "    add_library(${CFG_NAME}::${CFG_NAME} ALIAS ${CFG_NAME}_shared::${CFG_NAME}_shared)\n"
-    )
-    string(APPEND UNIFIED_CONFIG_CONTENT "  endif()\n")
-    string(APPEND UNIFIED_CONFIG_CONTENT "endif()\n")
+    string(APPEND CONFIG_CONTENT "endif()\n")
   elseif(CFG_BUILD_STATIC)
     string(
-      APPEND UNIFIED_CONFIG_CONTENT
-      "if(TARGET ${CFG_NAME}_static::${CFG_NAME}_static)\n"
+      APPEND CONFIG_CONTENT
+      "if(TARGET ${CFG_NAME}_static AND NOT TARGET ${CFG_NAME}::${CFG_NAME})\n"
     )
     string(
-      APPEND UNIFIED_CONFIG_CONTENT
-      "  if(NOT TARGET ${CFG_NAME}::${CFG_NAME})\n"
+      APPEND CONFIG_CONTENT
+      "  add_library(${CFG_NAME}::${CFG_NAME} ALIAS ${CFG_NAME}_static)\n"
     )
-    string(
-      APPEND UNIFIED_CONFIG_CONTENT
-      "    add_library(${CFG_NAME}::${CFG_NAME} ALIAS ${CFG_NAME}_static::${CFG_NAME}_static)\n"
-    )
-    string(APPEND UNIFIED_CONFIG_CONTENT "  endif()\n")
-    string(APPEND UNIFIED_CONFIG_CONTENT "endif()\n")
+    string(APPEND CONFIG_CONTENT "endif()\n")
   endif()
 
-  # Create rs:: namespace aliases
-  string(APPEND UNIFIED_CONFIG_CONTENT "\n# Create rs:: namespace aliases\n")
-  if(CFG_BUILD_SHARED)
-    string(
-      APPEND UNIFIED_CONFIG_CONTENT
-      "if(TARGET ${CFG_NAME}_shared::${CFG_NAME}_shared)\n"
-    )
-    string(
-      APPEND UNIFIED_CONFIG_CONTENT
-      "  if(NOT TARGET rs::${CFG_NAME}_shared)\n"
-    )
-    string(
-      APPEND UNIFIED_CONFIG_CONTENT
-      "    add_library(rs::${CFG_NAME}_shared ALIAS ${CFG_NAME}_shared::${CFG_NAME}_shared)\n"
-    )
-    string(APPEND UNIFIED_CONFIG_CONTENT "  endif()\n")
-    string(APPEND UNIFIED_CONFIG_CONTENT "endif()\n\n")
-  endif()
+  string(APPEND CONFIG_CONTENT "\ncheck_required_components(${CFG_NAME})\n")
 
-  if(CFG_BUILD_STATIC)
-    string(
-      APPEND UNIFIED_CONFIG_CONTENT
-      "if(TARGET ${CFG_NAME}_static::${CFG_NAME}_static)\n"
-    )
-    string(
-      APPEND UNIFIED_CONFIG_CONTENT
-      "  if(NOT TARGET rs::${CFG_NAME}_static)\n"
-    )
-    string(
-      APPEND UNIFIED_CONFIG_CONTENT
-      "    add_library(rs::${CFG_NAME}_static ALIAS ${CFG_NAME}_static::${CFG_NAME}_static)\n"
-    )
-    string(APPEND UNIFIED_CONFIG_CONTENT "  endif()\n")
-    string(APPEND UNIFIED_CONFIG_CONTENT "endif()\n\n")
-  endif()
+  # Write and configure
+  set(CONFIG_TEMPLATE "${CMAKE_CURRENT_BINARY_DIR}/${CFG_NAME}Config.cmake.in")
+  file(WRITE ${CONFIG_TEMPLATE} ${CONFIG_CONTENT})
 
-  # Create rs::${CFG_NAME} pointing to preferred variant
-  if(CFG_BUILD_SHARED)
-    string(
-      APPEND UNIFIED_CONFIG_CONTENT
-      "if(TARGET ${CFG_NAME}_shared::${CFG_NAME}_shared)\n"
-    )
-    string(APPEND UNIFIED_CONFIG_CONTENT "  if(NOT TARGET rs::${CFG_NAME})\n")
-    string(
-      APPEND UNIFIED_CONFIG_CONTENT
-      "    add_library(rs::${CFG_NAME} ALIAS ${CFG_NAME}_shared::${CFG_NAME}_shared)\n"
-    )
-    string(APPEND UNIFIED_CONFIG_CONTENT "  endif()\n")
-    string(APPEND UNIFIED_CONFIG_CONTENT "endif()\n")
-  elseif(CFG_BUILD_STATIC)
-    string(
-      APPEND UNIFIED_CONFIG_CONTENT
-      "if(TARGET ${CFG_NAME}_static::${CFG_NAME}_static)\n"
-    )
-    string(APPEND UNIFIED_CONFIG_CONTENT "  if(NOT TARGET rs::${CFG_NAME})\n")
-    string(
-      APPEND UNIFIED_CONFIG_CONTENT
-      "    add_library(rs::${CFG_NAME} ALIAS ${CFG_NAME}_static::${CFG_NAME}_static)\n"
-    )
-    string(APPEND UNIFIED_CONFIG_CONTENT "  endif()\n")
-    string(APPEND UNIFIED_CONFIG_CONTENT "endif()\n")
-  endif()
-
-  string(
-    APPEND UNIFIED_CONFIG_CONTENT
-    "\ncheck_required_components(${CFG_NAME})\n"
-  )
-
-  # Write and configure the config file
-  set(
-    UNIFIED_CONFIG_TEMPLATE
-    "${CMAKE_CURRENT_BINARY_DIR}/${CFG_NAME}Config.cmake.in"
-  )
-  file(WRITE ${UNIFIED_CONFIG_TEMPLATE} ${UNIFIED_CONFIG_CONTENT})
-
-  set(UNIFIED_CONFIG_FILE "${CMAKE_CURRENT_BINARY_DIR}/${CFG_NAME}Config.cmake")
+  set(CONFIG_FILE "${CMAKE_CURRENT_BINARY_DIR}/${CFG_NAME}Config.cmake")
   configure_package_config_file(
-    ${UNIFIED_CONFIG_TEMPLATE}
-    ${UNIFIED_CONFIG_FILE}
+    ${CONFIG_TEMPLATE}
+    ${CONFIG_FILE}
     INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${CFG_NAME}
   )
 
-  # Create version file
-  set(
-    UNIFIED_VERSION_FILE
-    "${CMAKE_CURRENT_BINARY_DIR}/${CFG_NAME}ConfigVersion.cmake"
-  )
+  # Version file
+  set(VERSION_FILE "${CMAKE_CURRENT_BINARY_DIR}/${CFG_NAME}ConfigVersion.cmake")
   write_basic_package_version_file(
-    ${UNIFIED_VERSION_FILE}
+    ${VERSION_FILE}
     VERSION ${CFG_VERSION}
     COMPATIBILITY SameMajorVersion
   )
 
   # Install config files
   install(
-    FILES ${UNIFIED_CONFIG_FILE} ${UNIFIED_VERSION_FILE}
+    FILES ${CONFIG_FILE} ${VERSION_FILE}
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${CFG_NAME}
+  )
+
+  # Install targets export
+  install(
+    EXPORT ${CFG_NAME}Targets
+    FILE ${CFG_NAME}Targets.cmake
+    NAMESPACE ${CFG_NAME}::
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${CFG_NAME}
   )
 
   # ==========================================================================
-  # Create unified pkg-config file (simplified for C)
+  # Create pkg-config files
   # ==========================================================================
-  # Use FULL paths to avoid issues with absolute CMAKE_INSTALL_*DIR in Nix
-  set(PC_CONTENT "")
-  string(APPEND PC_CONTENT "prefix=${CMAKE_INSTALL_PREFIX}\n")
-  string(APPEND PC_CONTENT "exec_prefix=\${prefix}\n")
-  string(APPEND PC_CONTENT "libdir=${CMAKE_INSTALL_FULL_LIBDIR}\n")
-  string(APPEND PC_CONTENT "includedir=${CMAKE_INSTALL_FULL_INCLUDEDIR}\n\n")
-  string(APPEND PC_CONTENT "Name: ${CFG_NAME}\n")
-  string(APPEND PC_CONTENT "Description: ${CFG_DESCRIPTION}\n")
-  string(APPEND PC_CONTENT "Version: ${CFG_VERSION}\n")
+  include(GNUInstallDirs)
 
+  # rs_std.pc - for shared linking (default)
+  set(PC_SHARED "")
+  string(APPEND PC_SHARED "prefix=${CMAKE_INSTALL_PREFIX}\n")
+  string(APPEND PC_SHARED "exec_prefix=\${prefix}\n")
+  string(APPEND PC_SHARED "libdir=${CMAKE_INSTALL_FULL_LIBDIR}\n")
+  string(APPEND PC_SHARED "includedir=${CMAKE_INSTALL_FULL_INCLUDEDIR}\n\n")
+  string(APPEND PC_SHARED "Name: ${CFG_NAME}\n")
+  string(APPEND PC_SHARED "Description: ${CFG_DESCRIPTION}\n")
+  string(APPEND PC_SHARED "Version: ${CFG_VERSION}\n")
   if(CFG_URL)
-    string(APPEND PC_CONTENT "URL: ${CFG_URL}\n")
+    string(APPEND PC_SHARED "URL: ${CFG_URL}\n")
   endif()
-
   if(CFG_PKG_CONFIG_REQUIRES)
-    string(APPEND PC_CONTENT "Requires: ${CFG_PKG_CONFIG_REQUIRES}\n")
+    string(APPEND PC_SHARED "Requires: ${CFG_PKG_CONFIG_REQUIRES}\n")
+  endif()
+  string(APPEND PC_SHARED "Libs: -L\${libdir} -l${CFG_NAME}\n")
+  string(APPEND PC_SHARED "Cflags: -I\${includedir}\n")
+
+  set(PC_SHARED_FILE "${CMAKE_CURRENT_BINARY_DIR}/${CFG_NAME}.pc")
+  file(WRITE ${PC_SHARED_FILE} ${PC_SHARED})
+  install(FILES ${PC_SHARED_FILE} DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
+
+  # rs_std_static.pc - for static linking
+  set(PC_STATIC "")
+  string(APPEND PC_STATIC "prefix=${CMAKE_INSTALL_PREFIX}\n")
+  string(APPEND PC_STATIC "exec_prefix=\${prefix}\n")
+  string(APPEND PC_STATIC "libdir=${CMAKE_INSTALL_FULL_LIBDIR}\n")
+  string(APPEND PC_STATIC "includedir=${CMAKE_INSTALL_FULL_INCLUDEDIR}\n\n")
+  string(APPEND PC_STATIC "Name: ${CFG_NAME}_static\n")
+  string(APPEND PC_STATIC "Description: ${CFG_DESCRIPTION} (static)\n")
+  string(APPEND PC_STATIC "Version: ${CFG_VERSION}\n")
+  if(CFG_URL)
+    string(APPEND PC_STATIC "URL: ${CFG_URL}\n")
   endif()
 
-  string(APPEND PC_CONTENT "Libs: -L\${libdir} -l${CFG_NAME}\n")
-  string(APPEND PC_CONTENT "Cflags: -I\${includedir}\n")
+  # Build Requires line based on STATIC_PKG_CONFIG_DEPS
+  # Each entry is "VarName:system_pc_name:cpm_pc_name"
+  # We check ${VarName}_FROM_SYSTEM to decide which pc name to use
+  if(CFG_STATIC_PKG_CONFIG_DEPS)
+    set(_PC_REQUIRES "")
+    foreach(_dep ${CFG_STATIC_PKG_CONFIG_DEPS})
+      # Parse the colon-separated string
+      string(REPLACE ":" ";" _dep_parts "${_dep}")
+      list(LENGTH _dep_parts _dep_parts_len)
+      if(_dep_parts_len EQUAL 3)
+        list(GET _dep_parts 0 _var_name)
+        list(GET _dep_parts 1 _system_pc)
+        list(GET _dep_parts 2 _cpm_pc)
+        if(${_var_name}_FROM_SYSTEM)
+          string(APPEND _PC_REQUIRES "${_system_pc} ")
+        else()
+          string(APPEND _PC_REQUIRES "${_cpm_pc} ")
+        endif()
+      endif()
+    endforeach()
+    string(STRIP "${_PC_REQUIRES}" _PC_REQUIRES)
+    if(_PC_REQUIRES)
+      string(APPEND PC_STATIC "Requires: ${_PC_REQUIRES}\n")
+    endif()
+  endif()
 
-  set(PC_FILE "${CMAKE_CURRENT_BINARY_DIR}/${CFG_NAME}.pc")
-  file(WRITE ${PC_FILE} ${PC_CONTENT})
-  install(FILES ${PC_FILE} DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
+  string(APPEND PC_STATIC "Libs: \${libdir}/lib${CFG_NAME}.a\n")
+  if(CFG_PKG_CONFIG_LIBS_PRIVATE)
+    string(APPEND PC_STATIC "Libs.private: ${CFG_PKG_CONFIG_LIBS_PRIVATE}\n")
+  endif()
+  string(APPEND PC_STATIC "Cflags: -I\${includedir}\n")
+
+  set(PC_STATIC_FILE "${CMAKE_CURRENT_BINARY_DIR}/${CFG_NAME}_static.pc")
+  file(WRITE ${PC_STATIC_FILE} ${PC_STATIC})
+  install(FILES ${PC_STATIC_FILE} DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
 endfunction()

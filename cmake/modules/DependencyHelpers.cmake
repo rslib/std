@@ -22,6 +22,8 @@ Usage:
     [SOVERSION num]                           # Defaults to PROJECT_VERSION_MAJOR
     [FIND_PACKAGE_NAME pkg]                   # Try find_package(pkg) first before CPM
     [FIND_PACKAGE_TARGETS target1 ...]        # Targets to check from find_package
+    [PKG_CONFIG_NAME name]                    # Name for generated .pc file (e.g., "libxxhash")
+    [SKIP_FIND_PACKAGE_VAR varname]           # Variable name to check for skipping find_package
   )
 
 Returns (sets in parent scope):
@@ -45,6 +47,8 @@ function(rs_add_source_library)
     NAMESPACE
     SOVERSION
     FIND_PACKAGE_NAME
+    PKG_CONFIG_NAME
+    SKIP_FIND_PACKAGE_VAR
   )
   set(
     multiValueArgs
@@ -102,9 +106,21 @@ function(rs_add_source_library)
     string(TOLOWER ${LIB_NAME} LIB_OUTPUT_NAME)
   endif()
 
-  # Try find_package first if FIND_PACKAGE_NAME is specified
+  # Check if we should skip find_package (e.g., RS_STD_FORCE_BUILD_SQLITE3)
+  set(SKIP_FIND_PACKAGE FALSE)
+  if(DEFINED LIB_SKIP_FIND_PACKAGE_VAR)
+    if(${LIB_SKIP_FIND_PACKAGE_VAR})
+      set(SKIP_FIND_PACKAGE TRUE)
+      message(
+        STATUS
+        "Skipping find_package for ${LIB_NAME} (${LIB_SKIP_FIND_PACKAGE_VAR}=${${LIB_SKIP_FIND_PACKAGE_VAR}})"
+      )
+    endif()
+  endif()
+
+  # Try find_package first if FIND_PACKAGE_NAME is specified and not skipped
   set(FOUND_SYSTEM_PACKAGE FALSE)
-  if(LIB_FIND_PACKAGE_NAME)
+  if(LIB_FIND_PACKAGE_NAME AND NOT SKIP_FIND_PACKAGE)
     find_package(${LIB_FIND_PACKAGE_NAME} QUIET)
     if(${LIB_FIND_PACKAGE_NAME}_FOUND)
       message(
@@ -303,6 +319,50 @@ function(rs_add_source_library)
 
   # Set targets in parent scope
   set(${LIB_NAME_UPPER}_TARGETS ${LIB_TARGETS} PARENT_SCOPE)
+
+  # Generate pkg-config files for CPM-built dependencies
+  # Default .pc uses -l flag (prefers shared), _static.pc uses full .a path
+  if(LIB_PKG_CONFIG_NAME AND LIB_TARGETS)
+    include(GNUInstallDirs)
+    set(PC_NAME ${LIB_PKG_CONFIG_NAME})
+
+    # Default .pc file (shared)
+    set(PC_FILE "${CMAKE_CURRENT_BINARY_DIR}/${PC_NAME}.pc")
+    file(
+      WRITE ${PC_FILE}
+      "prefix=${CMAKE_INSTALL_PREFIX}\n"
+      "exec_prefix=\${prefix}\n"
+      "libdir=${CMAKE_INSTALL_FULL_LIBDIR}\n"
+      "includedir=${CMAKE_INSTALL_FULL_INCLUDEDIR}\n"
+      "\n"
+      "Name: ${PC_NAME}\n"
+      "Description: ${LIB_NAME} library\n"
+      "Version: ${LIB_VERSION}\n"
+      "Libs: -L\${libdir} -l${LIB_OUTPUT_NAME}\n"
+      "Cflags: -I\${includedir}\n"
+    )
+    install(FILES ${PC_FILE} DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
+
+    # Static .pc file (uses full .a path)
+    set(PC_STATIC_FILE "${CMAKE_CURRENT_BINARY_DIR}/${PC_NAME}_static.pc")
+    file(
+      WRITE ${PC_STATIC_FILE}
+      "prefix=${CMAKE_INSTALL_PREFIX}\n"
+      "exec_prefix=\${prefix}\n"
+      "libdir=${CMAKE_INSTALL_FULL_LIBDIR}\n"
+      "includedir=${CMAKE_INSTALL_FULL_INCLUDEDIR}\n"
+      "\n"
+      "Name: ${PC_NAME}_static\n"
+      "Description: ${LIB_NAME} library (static)\n"
+      "Version: ${LIB_VERSION}\n"
+      "Libs: \${libdir}/lib${LIB_OUTPUT_NAME}.a\n"
+      "Cflags: -I\${includedir}\n"
+    )
+    install(
+      FILES ${PC_STATIC_FILE}
+      DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
+    )
+  endif()
 
   # Mark as processed and cache the targets
   # set(RS_SOURCE_LIB_${LIB_NAME_UPPER}_PROCESSED TRUE CACHE INTERNAL "")

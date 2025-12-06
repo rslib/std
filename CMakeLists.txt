@@ -108,6 +108,14 @@ include_directories("${CMAKE_CURRENT_BINARY_DIR}/include")
 
 add_subdirectory(src)
 
+# Install public headers
+install(
+  DIRECTORY ${CMAKE_SOURCE_DIR}/include/
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  FILES_MATCHING
+  PATTERN "*.h"
+)
+
 if(RS_STD_BUILD_TESTS)
   enable_testing()
   add_subdirectory(tests)
