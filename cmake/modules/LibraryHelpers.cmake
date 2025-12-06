@@ -486,14 +486,13 @@ function(_rs_create_library_package_configs)
   # ============================================================================
   # Create pkg-config file
   # ============================================================================
+  # Use FULL paths to avoid issues with absolute CMAKE_INSTALL_*DIR in Nix
+  include(GNUInstallDirs)
   set(PC_CONTENT "")
   string(APPEND PC_CONTENT "prefix=${CMAKE_INSTALL_PREFIX}\n")
   string(APPEND PC_CONTENT "exec_prefix=\${prefix}\n")
-  string(APPEND PC_CONTENT "libdir=\${exec_prefix}/${CMAKE_INSTALL_LIBDIR}\n")
-  string(
-    APPEND PC_CONTENT
-    "includedir=\${prefix}/${CMAKE_INSTALL_INCLUDEDIR}\n\n"
-  )
+  string(APPEND PC_CONTENT "libdir=${CMAKE_INSTALL_FULL_LIBDIR}\n")
+  string(APPEND PC_CONTENT "includedir=${CMAKE_INSTALL_FULL_INCLUDEDIR}\n\n")
   string(APPEND PC_CONTENT "Name: ${PKG_NAME}\n")
   string(APPEND PC_CONTENT "Description: ${PKG_DESCRIPTION}\n")
   string(APPEND PC_CONTENT "Version: ${PKG_VERSION}\n")
@@ -874,14 +873,12 @@ function(rs_create_unified_library_config)
   # ==========================================================================
   # Create unified pkg-config file (simplified for C)
   # ==========================================================================
+  # Use FULL paths to avoid issues with absolute CMAKE_INSTALL_*DIR in Nix
   set(PC_CONTENT "")
   string(APPEND PC_CONTENT "prefix=${CMAKE_INSTALL_PREFIX}\n")
   string(APPEND PC_CONTENT "exec_prefix=\${prefix}\n")
-  string(APPEND PC_CONTENT "libdir=\${exec_prefix}/${CMAKE_INSTALL_LIBDIR}\n")
-  string(
-    APPEND PC_CONTENT
-    "includedir=\${prefix}/${CMAKE_INSTALL_INCLUDEDIR}\n\n"
-  )
+  string(APPEND PC_CONTENT "libdir=${CMAKE_INSTALL_FULL_LIBDIR}\n")
+  string(APPEND PC_CONTENT "includedir=${CMAKE_INSTALL_FULL_INCLUDEDIR}\n\n")
   string(APPEND PC_CONTENT "Name: ${CFG_NAME}\n")
   string(APPEND PC_CONTENT "Description: ${CFG_DESCRIPTION}\n")
   string(APPEND PC_CONTENT "Version: ${CFG_VERSION}\n")

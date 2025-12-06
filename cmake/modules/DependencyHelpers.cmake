@@ -20,10 +20,13 @@ Usage:
     [BUILD_STATIC ON|OFF]                     # Defaults to RS_STD_BUILD_STATIC
     [NAMESPACE ns]                            # Defaults to NAME
     [SOVERSION num]                           # Defaults to PROJECT_VERSION_MAJOR
+    [FIND_PACKAGE_NAME pkg]                   # Try find_package(pkg) first before CPM
+    [FIND_PACKAGE_TARGETS target1 ...]        # Targets to check from find_package
   )
 
 Returns (sets in parent scope):
   ${NAME}_TARGETS - List of created targets
+  ${NAME}_FROM_SYSTEM - TRUE if found via find_package
 #]=]
 function(rs_add_source_library)
   set(options "")
@@ -41,6 +44,7 @@ function(rs_add_source_library)
     BUILD_STATIC
     NAMESPACE
     SOVERSION
+    FIND_PACKAGE_NAME
   )
   set(
     multiValueArgs
@@ -48,6 +52,7 @@ function(rs_add_source_library)
     HEADER_FILES
     PUBLIC_COMPILE_DEFINITIONS
     PRIVATE_LINK_LIBRARIES
+    FIND_PACKAGE_TARGETS
   )
 
   cmake_parse_arguments(
@@ -97,7 +102,41 @@ function(rs_add_source_library)
     string(TOLOWER ${LIB_NAME} LIB_OUTPUT_NAME)
   endif()
 
-  # Download the library if not already added
+  # Try find_package first if FIND_PACKAGE_NAME is specified
+  set(FOUND_SYSTEM_PACKAGE FALSE)
+  if(LIB_FIND_PACKAGE_NAME)
+    find_package(${LIB_FIND_PACKAGE_NAME} QUIET)
+    if(${LIB_FIND_PACKAGE_NAME}_FOUND)
+      message(
+        STATUS
+        "Found system ${LIB_NAME} via find_package(${LIB_FIND_PACKAGE_NAME})"
+      )
+      set(FOUND_SYSTEM_PACKAGE TRUE)
+
+      # Create aliases to match our naming convention if targets exist
+      if(LIB_FIND_PACKAGE_TARGETS)
+        foreach(target ${LIB_FIND_PACKAGE_TARGETS})
+          if(TARGET ${target})
+            # Create static alias
+            if(NOT TARGET ${LIB_NAMESPACE}::${LIB_NAME}_static)
+              add_library(${LIB_NAMESPACE}::${LIB_NAME}_static ALIAS ${target})
+            endif()
+            # Create default alias
+            if(NOT TARGET ${LIB_NAMESPACE}::${LIB_NAME})
+              add_library(${LIB_NAMESPACE}::${LIB_NAME} ALIAS ${target})
+            endif()
+            break()
+          endif()
+        endforeach()
+      endif()
+
+      set(${LIB_NAME}_FROM_SYSTEM TRUE PARENT_SCOPE)
+      set(${LIB_NAME_UPPER}_TARGETS "" PARENT_SCOPE)
+      return()
+    endif()
+  endif()
+
+  # Download the library via CPM if not already added and not found via find_package
   string(TOUPPER ${LIB_NAME} LIB_NAME_UPPER)
   if(NOT ${LIB_NAME}_ADDED)
     if(LIB_GITHUB_REPOSITORY)
@@ -122,6 +161,8 @@ function(rs_add_source_library)
       )
     endif()
   endif()
+
+  set(${LIB_NAME}_FROM_SYSTEM FALSE PARENT_SCOPE)
 
   set(LIB_TARGETS)
 
@@ -281,9 +322,13 @@ Usage:
     [OPTIONS opt1=val1 opt2=val2 ...]   # CMake options to pass to the library
     [TARGETS target1 target2 ...]        # Targets provided by the library
     [NAMESPACE ns]                       # Namespace for aliases (optional)
+    [FIND_PACKAGE_NAME pkg]              # Try find_package(pkg) first before CPM
+    [FIND_PACKAGE_TARGETS target1 ...]   # Targets to check from find_package
   )
 
 This function uses the library's own build system and creates aliases if needed.
+Returns (sets in parent scope):
+  ${NAME}_FROM_SYSTEM - TRUE if found via find_package
 #]=]
 function(rs_add_cmake_library)
   set(options "")
@@ -295,8 +340,9 @@ function(rs_add_cmake_library)
     GIT_TAG
     URL
     NAMESPACE
+    FIND_PACKAGE_NAME
   )
-  set(multiValueArgs OPTIONS TARGETS)
+  set(multiValueArgs OPTIONS TARGETS FIND_PACKAGE_TARGETS)
 
   cmake_parse_arguments(
     LIB
@@ -320,6 +366,43 @@ function(rs_add_cmake_library)
   #   return()
   # endif()
 
+  # Set namespace default
+  if(NOT LIB_NAMESPACE)
+    set(LIB_NAMESPACE ${LIB_NAME})
+  endif()
+
+  # Try find_package first if FIND_PACKAGE_NAME is specified
+  if(LIB_FIND_PACKAGE_NAME)
+    find_package(${LIB_FIND_PACKAGE_NAME} QUIET)
+    if(${LIB_FIND_PACKAGE_NAME}_FOUND)
+      message(
+        STATUS
+        "Found system ${LIB_NAME} via find_package(${LIB_FIND_PACKAGE_NAME})"
+      )
+
+      # Create aliases to match our naming convention if targets exist
+      if(LIB_FIND_PACKAGE_TARGETS)
+        foreach(target ${LIB_FIND_PACKAGE_TARGETS})
+          if(TARGET ${target})
+            # Create static alias
+            if(NOT TARGET ${LIB_NAMESPACE}::${LIB_NAME}_static)
+              add_library(${LIB_NAMESPACE}::${LIB_NAME}_static ALIAS ${target})
+            endif()
+            # Create default alias
+            if(NOT TARGET ${LIB_NAMESPACE}::${LIB_NAME})
+              add_library(${LIB_NAMESPACE}::${LIB_NAME} ALIAS ${target})
+            endif()
+            break()
+          endif()
+        endforeach()
+      endif()
+
+      set(${LIB_NAME}_FROM_SYSTEM TRUE PARENT_SCOPE)
+      set(${LIB_NAME}_ADDED TRUE PARENT_SCOPE)
+      return()
+    endif()
+  endif()
+
   # Set up options as a list
   set(CPM_OPTIONS "")
   if(LIB_OPTIONS)
@@ -328,7 +411,7 @@ function(rs_add_cmake_library)
     endforeach()
   endif()
 
-  # Download and build the library
+  # Download and build the library via CPM
   if(NOT ${LIB_NAME}_ADDED)
     if(LIB_GITHUB_REPOSITORY)
       cpmaddpackage(
@@ -352,6 +435,8 @@ function(rs_add_cmake_library)
       )
     endif()
   endif()
+
+  set(${LIB_NAME}_FROM_SYSTEM FALSE PARENT_SCOPE)
 
   # Create namespace aliases if requested and targets are specified
   if(LIB_NAMESPACE AND LIB_TARGETS)

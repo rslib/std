@@ -60,6 +60,8 @@ function(rs_need_yyjson)
     NAMESPACE yyjson
     OUTPUT_NAME yyjson
     SOVERSION 0
+    FIND_PACKAGE_NAME yyjson
+    FIND_PACKAGE_TARGETS yyjson::yyjson
   )
 endfunction()
 
@@ -73,72 +75,36 @@ Usage:
   rs_need_sqlite3()
 
   # Then link:
-  rs_link_dependency(TARGET my_target DEPENDENCY SQLite)
-  # Or use legacy function:
-  rs_link_sqlite3(my_target SHARED)  # or STATIC
+  rs_link_dependency(TARGET my_target DEPENDENCY SQLite NAME SQLite3)
 #]=]
 function(rs_need_sqlite3)
-  # Option to force building SQLite3 from source
-  # Set RS_STD_FORCE_BUILD_SQLITE3=ON to always build from CPM
-  if(NOT DEFINED RS_STD_FORCE_BUILD_SQLITE3)
-    set(RS_STD_FORCE_BUILD_SQLITE3 OFF)
-  endif()
+  rs_add_source_library(
+    NAME SQLite3
+    URL https://sqlite.org/2025/sqlite-amalgamation-3510100.zip
+    VERSION 3.51.1
+    SOURCE_FILES sqlite3.c
+    HEADER_FILES sqlite3.h
+    NAMESPACE SQLite
+    OUTPUT_NAME sqlite3
+    SOVERSION 3
+    PUBLIC_COMPILE_DEFINITIONS
+      SQLITE_ENABLE_FTS5
+      SQLITE_ENABLE_JSON1
+      SQLITE_ENABLE_RTREE
+      SQLITE_THREADSAFE=1
+    PRIVATE_LINK_LIBRARIES
+      $<$<NOT:$<PLATFORM_ID:Windows>>:pthread>
+      $<$<NOT:$<PLATFORM_ID:Windows>>:dl>
+      $<$<NOT:$<PLATFORM_ID:Windows>>:m>
+    FIND_PACKAGE_NAME SQLite3
+    FIND_PACKAGE_TARGETS SQLite::SQLite3
+  )
 
-  # Try to find system SQLite3 first (unless forced to build)
-  if(NOT RS_STD_FORCE_BUILD_SQLITE3)
-    find_package(SQLite3 3.35 QUIET)
-  else()
-    set(SQLite3_FOUND FALSE)
-  endif()
-
-  if(SQLite3_FOUND)
-    message(STATUS "Found system SQLite3: ${SQLite3_LIBRARIES}")
-
-    # Create alias for system SQLite3 if it doesn't exist
-    if(NOT TARGET SQLite::SQLite3)
-      add_library(SQLite::SQLite3 UNKNOWN IMPORTED)
-      set_target_properties(
-        SQLite::SQLite3
-        PROPERTIES
-          IMPORTED_LOCATION "${SQLite3_LIBRARIES}"
-          INTERFACE_INCLUDE_DIRECTORIES "${SQLite3_INCLUDE_DIRS}"
-      )
-    endif()
-
-    if(NOT TARGET SQLite::SQLite3_static)
-      add_library(SQLite::SQLite3_static ALIAS SQLite::SQLite3)
-    endif()
-
-    # Set variables in parent scope
-    set(SQLite3_FOUND ${SQLite3_FOUND} PARENT_SCOPE)
-    set(SQLite3_LIBRARIES ${SQLite3_LIBRARIES} PARENT_SCOPE)
-    set(SQLite3_INCLUDE_DIRS ${SQLite3_INCLUDE_DIRS} PARENT_SCOPE)
+  # Set legacy variable for compatibility
+  if(SQLite3_FROM_SYSTEM)
     set(SQLite3_CPM FALSE PARENT_SCOPE)
   else()
-    # Build with CPM
-    # Note: SQLite amalgamation ZIPs contain files in a subdirectory
-    rs_add_source_library(
-      NAME SQLite3
-      URL https://sqlite.org/2025/sqlite-amalgamation-3510100.zip
-      VERSION 3.51.1
-      SOURCE_FILES sqlite3.c
-      HEADER_FILES sqlite3.h
-      NAMESPACE SQLite
-      OUTPUT_NAME sqlite3
-      SOVERSION 3
-      PUBLIC_COMPILE_DEFINITIONS
-        SQLITE_ENABLE_FTS5
-        SQLITE_ENABLE_JSON1
-        SQLITE_ENABLE_RTREE
-        SQLITE_THREADSAFE=1
-      PRIVATE_LINK_LIBRARIES
-        $<$<NOT:$<PLATFORM_ID:Windows>>:pthread>
-        $<$<NOT:$<PLATFORM_ID:Windows>>:dl>
-        $<$<NOT:$<PLATFORM_ID:Windows>>:m>
-    )
-
     set(SQLite3_CPM TRUE PARENT_SCOPE)
-    message(STATUS "Built SQLite3 with CPM")
   endif()
 endfunction()
 
@@ -149,6 +115,9 @@ endfunction()
 
     # Then link:
     rs_link_dependency(TARGET my_target DEPENDENCY Monocypher)
+
+  Note: monocypher package is not available on macOS via nixpkgs,
+  so it will fallback to CPM on that platform.
 #]=]
 function(rs_need_monocypher)
   rs_add_source_library(
@@ -162,6 +131,8 @@ function(rs_need_monocypher)
     NAMESPACE Monocypher
     OUTPUT_NAME monocypher
     SOVERSION 4
+    FIND_PACKAGE_NAME monocypher
+    FIND_PACKAGE_TARGETS monocypher::monocypher
   )
 endfunction()
 
@@ -175,59 +146,28 @@ Usage:
   rs_need_curl()
 
   # Then link:
-  rs_link_dependency(TARGET my_target DEPENDENCY CURL)
+  rs_link_dependency(TARGET my_target DEPENDENCY CURL NAME libcurl)
 #]=]
 function(rs_need_curl)
-  # Option to force building libcurl from source
-  # Set RS_STD_FORCE_BUILD_CURL=ON to always build from CPM
-  if(NOT DEFINED RS_STD_FORCE_BUILD_CURL)
-    set(RS_STD_FORCE_BUILD_CURL OFF)
-  endif()
+  rs_add_cmake_library(
+    NAME CURL
+    GITHUB_REPOSITORY curl/curl
+    VERSION 8.16.0
+    GIT_TAG curl-8_16_0
+    NAMESPACE CURL
+    OPTIONS
+      "BUILD_CURL_EXE OFF"
+      "BUILD_SHARED_LIBS ${RS_STD_BUILD_SHARED}"
+      "CURL_DISABLE_TESTS ON"
+      "BUILD_TESTING OFF"
+      "CURL_USE_LIBSSH2 OFF"
+      "CURL_USE_LIBPSL OFF"
+    FIND_PACKAGE_NAME CURL
+    FIND_PACKAGE_TARGETS CURL::libcurl
+  )
 
-  # Try to find system libcurl first (unless forced to build)
-  if(NOT RS_STD_FORCE_BUILD_CURL)
-    find_package(CURL QUIET)
-  else()
-    set(CURL_FOUND FALSE)
-  endif()
-
-  if(CURL_FOUND)
-    message(STATUS "Found system libcurl: ${CURL_LIBRARIES}")
-
-    # CURL package usually provides CURL::libcurl target
-    # But ensure aliases exist for consistency
-    if(NOT TARGET CURL::libcurl)
-      add_library(CURL::libcurl UNKNOWN IMPORTED)
-      set_target_properties(
-        CURL::libcurl
-        PROPERTIES
-          IMPORTED_LOCATION "${CURL_LIBRARIES}"
-          INTERFACE_INCLUDE_DIRECTORIES "${CURL_INCLUDE_DIRS}"
-      )
-    endif()
-
-    # Set variables in parent scope
-    set(CURL_FOUND ${CURL_FOUND} PARENT_SCOPE)
-    set(CURL_LIBRARIES ${CURL_LIBRARIES} PARENT_SCOPE)
-    set(CURL_INCLUDE_DIRS ${CURL_INCLUDE_DIRS} PARENT_SCOPE)
-    set(CURL_CPM FALSE PARENT_SCOPE)
-  else()
-    # Build with CPM
-    rs_add_cmake_library(
-      NAME CURL
-      GITHUB_REPOSITORY curl/curl
-      VERSION 8.16.0
-      GIT_TAG curl-8_16_0
-      OPTIONS
-        "BUILD_CURL_EXE OFF"
-        "BUILD_SHARED_LIBS ${RS_STD_BUILD_SHARED}"
-        "CURL_DISABLE_TESTS ON"
-        "BUILD_TESTING OFF"
-        "CURL_USE_LIBSSH2 OFF"
-        "CURL_USE_LIBPSL OFF"
-    )
-
-    # Create aliases for consistency
+  # Create aliases for CPM-built targets
+  if(NOT CURL_FROM_SYSTEM)
     if(TARGET libcurl_shared AND NOT TARGET CURL::libcurl)
       add_library(CURL::libcurl ALIAS libcurl_shared)
     elseif(TARGET libcurl_static AND NOT TARGET CURL::libcurl)
@@ -235,9 +175,13 @@ function(rs_need_curl)
     elseif(TARGET libcurl AND NOT TARGET CURL::libcurl)
       add_library(CURL::libcurl ALIAS libcurl)
     endif()
+  endif()
 
+  # Set legacy variable for compatibility
+  if(CURL_FROM_SYSTEM)
+    set(CURL_CPM FALSE PARENT_SCOPE)
+  else()
     set(CURL_CPM TRUE PARENT_SCOPE)
-    message(STATUS "Built libcurl with CPM")
   endif()
 endfunction()
 
@@ -261,5 +205,7 @@ function(rs_need_xxhash)
     NAMESPACE xxHash
     OUTPUT_NAME xxhash
     SOVERSION 0
+    FIND_PACKAGE_NAME xxHash
+    FIND_PACKAGE_TARGETS xxHash::xxhash
   )
 endfunction()

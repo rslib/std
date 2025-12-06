@@ -29,6 +29,9 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
 
+        # Custom packages
+        monocypher = pkgs.callPackage ./nix/monocypher.nix { };
+
         treefmtEval = treefmt-nix.lib.evalModule pkgs {
           projectRootFile = "flake.nix";
 
@@ -90,10 +93,15 @@
           };
         };
 
-        buildInputs = with pkgs; [
+        buildInputs = [
+          monocypher
+        ]
+        ++ (with pkgs; [
           sqlite
           openssl
-        ];
+          yyjson
+          xxHash
+        ]);
 
         nativeBuildInputs = with pkgs; [
           cmake

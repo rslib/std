@@ -114,13 +114,16 @@ if(RS_STD_BUILD_TESTS)
 endif()
 
 # Symlink compile_commands.json to build/ for clangd (done at configure time)
-if(CMAKE_EXPORS_COMPILE_COMMANDS)
-  file(MAKE_DIRECTORY "${CMAKE_SOURCE_DIR}/build")
-  file(
-    CREATE_LINK
-      "${CMAKE_BINARY_DIR}/compile_commands.json"
-      "${CMAKE_SOURCE_DIR}/build/compile_commands.json"
-    COPY_ON_ERROR
-    SYMBOLIC
-  )
+# Skip if source and binary dirs would create the same path (e.g., in Nix builds)
+if(CMAKE_EXPORT_COMPILE_COMMANDS)
+  set(_compile_commands_src "${CMAKE_BINARY_DIR}/compile_commands.json")
+  set(_compile_commands_dst "${CMAKE_SOURCE_DIR}/build/compile_commands.json")
+  if(NOT "${_compile_commands_src}" STREQUAL "${_compile_commands_dst}")
+    file(MAKE_DIRECTORY "${CMAKE_SOURCE_DIR}/build")
+    file(
+      CREATE_LINK "${_compile_commands_src}" "${_compile_commands_dst}"
+      COPY_ON_ERROR
+      SYMBOLIC
+    )
+  endif()
 endif()
