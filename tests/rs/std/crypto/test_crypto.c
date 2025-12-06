@@ -150,7 +150,7 @@ void test_crypto_encrypt_decrypt(void)
     TEST_ASSERT_GREATER_THAN(strlen(original), rs_string_len(&ciphertext));
 
     // Decrypt
-    result = rs_crypto_decrypt(&plaintext, rs_sv_from_string(ciphertext), key);
+    result = rs_crypto_decrypt(&plaintext, rs_sv_from_string(&ciphertext), key);
     TEST_ASSERT_EQUAL(RS_OK, result);
 
     // Should match original
@@ -173,7 +173,7 @@ void test_crypto_encrypt_empty(void)
     TEST_ASSERT_EQUAL(RS_OK, result);
 
     // Decrypt
-    result = rs_crypto_decrypt(&plaintext, rs_sv_from_string(ciphertext), key);
+    result = rs_crypto_decrypt(&plaintext, rs_sv_from_string(&ciphertext), key);
     TEST_ASSERT_EQUAL(RS_OK, result);
 
     // Should be empty
@@ -202,7 +202,7 @@ void test_crypto_encrypt_binary(void)
     TEST_ASSERT_EQUAL(RS_OK, result);
 
     // Decrypt
-    result = rs_crypto_decrypt(&plaintext, rs_sv_from_string(ciphertext), key);
+    result = rs_crypto_decrypt(&plaintext, rs_sv_from_string(&ciphertext), key);
     TEST_ASSERT_EQUAL(RS_OK, result);
 
     // Should match original
@@ -227,7 +227,7 @@ void test_crypto_decrypt_wrong_key(void)
     rs_crypto_encrypt(&ciphertext, rs_sv_from_cstr("secret"), key1);
 
     // Try to decrypt with key2 (should fail)
-    rs_result_t result = rs_crypto_decrypt(&plaintext, rs_sv_from_string(ciphertext), key2);
+    rs_result_t result = rs_crypto_decrypt(&plaintext, rs_sv_from_string(&ciphertext), key2);
     TEST_ASSERT_NOT_EQUAL(RS_OK, result);
 
     rs_string_destroy(&ciphertext);
@@ -250,7 +250,7 @@ void test_crypto_decrypt_corrupted(void)
     data[RS_CRYPTO_NONCE_SIZE + 2] ^= 0xFF;
 
     // Decrypt should fail (authentication error)
-    rs_result_t result = rs_crypto_decrypt(&plaintext, rs_sv_from_string(ciphertext), key);
+    rs_result_t result = rs_crypto_decrypt(&plaintext, rs_sv_from_string(&ciphertext), key);
     TEST_ASSERT_NOT_EQUAL(RS_OK, result);
 
     rs_string_destroy(&ciphertext);
@@ -292,7 +292,7 @@ void test_crypto_encrypt_decrypt_with_password(void)
     TEST_ASSERT_GREATER_THAN(RS_CRYPTO_SALT_SIZE, rs_string_len(&ciphertext));
 
     // Decrypt
-    result = rs_crypto_decrypt_with_password(&plaintext, rs_sv_from_string(ciphertext), rs_sv_from_cstr(password));
+    result = rs_crypto_decrypt_with_password(&plaintext, rs_sv_from_string(&ciphertext), rs_sv_from_cstr(password));
     TEST_ASSERT_EQUAL(RS_OK, result);
 
     // Should match original
@@ -312,7 +312,7 @@ void test_crypto_decrypt_with_wrong_password(void)
 
     // Try to decrypt with password2 (should fail)
     rs_result_t result =
-        rs_crypto_decrypt_with_password(&plaintext, rs_sv_from_string(ciphertext), rs_sv_from_cstr("password2"));
+        rs_crypto_decrypt_with_password(&plaintext, rs_sv_from_string(&ciphertext), rs_sv_from_cstr("password2"));
     TEST_ASSERT_NOT_EQUAL(RS_OK, result);
 
     rs_string_destroy(&ciphertext);
@@ -345,7 +345,7 @@ void test_crypto_encrypt_decrypt_base64(void)
     }
 
     // Decode and decrypt
-    result = rs_crypto_decrypt_base64(&plaintext, rs_sv_from_string(ciphertext), rs_sv_from_cstr(password));
+    result = rs_crypto_decrypt_base64(&plaintext, rs_sv_from_string(&ciphertext), rs_sv_from_cstr(password));
     TEST_ASSERT_EQUAL(RS_OK, result);
 
     // Should match original
@@ -396,11 +396,11 @@ void test_crypto_integration(void)
     TEST_ASSERT_FALSE(rs_string_eq(&encrypted1, &encrypted2));
 
     // Both should decrypt to the same message
-    rs_crypto_decrypt_base64(&decrypted, rs_sv_from_string(encrypted1), rs_sv_from_cstr(password));
+    rs_crypto_decrypt_base64(&decrypted, rs_sv_from_string(&encrypted1), rs_sv_from_cstr(password));
     TEST_ASSERT_TRUE(rs_string_eq_cstr(&decrypted, message));
 
     rs_string_clear(&decrypted);
-    rs_crypto_decrypt_base64(&decrypted, rs_sv_from_string(encrypted2), rs_sv_from_cstr(password));
+    rs_crypto_decrypt_base64(&decrypted, rs_sv_from_string(&encrypted2), rs_sv_from_cstr(password));
     TEST_ASSERT_TRUE(rs_string_eq_cstr(&decrypted, message));
 
     rs_string_destroy(&encrypted1);

@@ -248,12 +248,16 @@ void test_hashmap_pointer_keys(void)
     int value1 = 100;
     int value2 = 200;
 
-    TEST_ASSERT_EQUAL(RS_OK, rs_hashmap_insert(&map, &obj1, &value1));
-    TEST_ASSERT_EQUAL(RS_OK, rs_hashmap_insert(&map, &obj2, &value2));
+    // For pointer-keyed hashmaps, we need to pass a pointer to the pointer variable
+    void *ptr1 = &obj1;
+    void *ptr2 = &obj2;
+
+    TEST_ASSERT_EQUAL(RS_OK, rs_hashmap_insert(&map, &ptr1, &value1));
+    TEST_ASSERT_EQUAL(RS_OK, rs_hashmap_insert(&map, &ptr2, &value2));
     TEST_ASSERT_EQUAL(2, rs_hashmap_size(&map));
 
-    int *retrieved1 = rs_hashmap_get(&map, &obj1);
-    int *retrieved2 = rs_hashmap_get(&map, &obj2);
+    int *retrieved1 = rs_hashmap_get(&map, &ptr1);
+    int *retrieved2 = rs_hashmap_get(&map, &ptr2);
 
     TEST_ASSERT_NOT_NULL(retrieved1);
     TEST_ASSERT_NOT_NULL(retrieved2);
@@ -272,14 +276,18 @@ void test_hashmap_pointer_identity(void)
     int value1 = 100;
     int value2 = 200;
 
-    rs_hashmap_insert(&map, &obj1, &value1);
-    rs_hashmap_insert(&map, &obj2, &value2);
+    // For pointer-keyed hashmaps, we need to pass a pointer to the pointer variable
+    void *ptr1 = &obj1;
+    void *ptr2 = &obj2;
+
+    rs_hashmap_insert(&map, &ptr1, &value1);
+    rs_hashmap_insert(&map, &ptr2, &value2);
 
     // Should have 2 entries because pointers are different
     TEST_ASSERT_EQUAL(2, rs_hashmap_size(&map));
 
-    int *retrieved1 = rs_hashmap_get(&map, &obj1);
-    int *retrieved2 = rs_hashmap_get(&map, &obj2);
+    int *retrieved1 = rs_hashmap_get(&map, &ptr1);
+    int *retrieved2 = rs_hashmap_get(&map, &ptr2);
 
     TEST_ASSERT_EQUAL(100, *retrieved1);
     TEST_ASSERT_EQUAL(200, *retrieved2);

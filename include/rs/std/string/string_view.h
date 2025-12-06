@@ -61,9 +61,15 @@ RS_STD_API rs_string_view_t rs_sv_from_cstr(const char *cstr);
 RS_STD_API rs_string_view_t rs_sv_from_buf(const char *buf, rs_size_t len);
 
 /**
- * Create view from rs_string.
+ * Create view from rs_string pointer.
+ * Note: Takes a pointer because SSO strings store data inline in the struct.
+ * Passing by value would copy the struct, and the view would point to
+ * invalid memory after the copy is destroyed.
  */
-RS_STD_API rs_string_view_t rs_sv_from_string(rs_string_t str);
+static inline rs_string_view_t rs_sv_from_string(const rs_string_t *str)
+{
+    return rs_sv_from_buf(rs_string_cstr(str), rs_string_len(str));
+}
 
 /**
  * Empty view.

@@ -11,7 +11,7 @@
 // ============================================================================
 
 typedef struct {
-    rs_size_t padding; // Padding bytes added for alignment
+    rs_size_t prev_offset; // Offset before this allocation (for unwinding)
 } rs_stack_alloc_header_t;
 
 // ============================================================================
@@ -50,14 +50,21 @@ static void *stack_alloc(rs_allocator_t *allocator, rs_size_t size, rs_size_t al
         return NULL;
     }
 
-    // Calculate alignment
-    rs_uintptr curr_addr = (rs_uintptr)stack->buf + (rs_uintptr)stack->offset;
-    rs_uintptr offset_for_header = align_forward(curr_addr, _Alignof(rs_stack_alloc_header_t));
-    rs_uintptr offset_for_data = align_forward(offset_for_header + sizeof(rs_stack_alloc_header_t), align);
+    // Save offset before this allocation for unwinding
+    rs_size_t prev_offset = stack->offset;
 
-    // Calculate padding
-    rs_size_t padding = (rs_size_t)(offset_for_data - offset_for_header - sizeof(rs_stack_alloc_header_t));
-    rs_size_t total_size = sizeof(rs_stack_alloc_header_t) + padding + size;
+    // Calculate alignment: we need header immediately before aligned data
+    // so that free can find it at (data_ptr - sizeof(header))
+    rs_uintptr curr_addr = (rs_uintptr)stack->buf + (rs_uintptr)stack->offset;
+    rs_size_t header_size = sizeof(rs_stack_alloc_header_t);
+
+    // Find where aligned data would start (accounting for header space)
+    // We need (curr_addr + padding + header_size) to be aligned to 'align'
+    rs_uintptr data_addr = align_forward(curr_addr + header_size, align);
+    rs_uintptr header_addr = data_addr - header_size;
+
+    // Calculate total size from current offset
+    rs_size_t total_size = (rs_size_t)(data_addr - curr_addr) + size;
 
     // Check capacity
     if (stack->offset + total_size > stack->buf_len) {
@@ -67,12 +74,12 @@ static void *stack_alloc(rs_allocator_t *allocator, rs_size_t size, rs_size_t al
         return NULL;
     }
 
-    // Write header
-    rs_stack_alloc_header_t *header = (rs_stack_alloc_header_t *)(offset_for_header);
-    header->padding = padding;
+    // Write header with previous offset for unwinding (immediately before data)
+    rs_stack_alloc_header_t *header = (rs_stack_alloc_header_t *)header_addr;
+    header->prev_offset = prev_offset;
 
     // Get data pointer
-    void *ptr = (void *)(offset_for_data);
+    void *ptr = (void *)data_addr;
 
     // Update offset
     stack->offset += total_size;
@@ -127,30 +134,19 @@ static void stack_free_impl(rs_allocator_t *allocator, void *ptr, rs_size_t size
         return;
     }
 
-    // Get header (it's immediately before the data, minus any padding)
-    // The header is placed so that the data after it is properly aligned
-    // Data pointer = header + sizeof(header) + padding
-    // So: header = data pointer - sizeof(header) - padding
-    // But we don't know padding yet, so we read it from where the header should be
+    // Get header (it's immediately before the data)
     rs_stack_alloc_header_t *header = (rs_stack_alloc_header_t *)(curr_addr - sizeof(rs_stack_alloc_header_t));
 
-    // Now we can read the padding
-    rs_size_t padding = header->padding;
-
-    // Calculate the actual start of this allocation (before the header)
-    rs_size_t alloc_stars_offset = (rs_size_t)(curr_addr - sizeof(rs_stack_alloc_header_t) - padding - start);
-
-    // Calculate previous offset (this is where we should rewind to)
-    rs_size_t prev_offset = alloc_stars_offset;
+    // Read the previous offset stored in the header
+    rs_size_t prev_offset = header->prev_offset;
 
     // Validate this is the top allocation (LIFO)
-    // We check if rewinding would take us before current offset
     if (prev_offset > stack->offset) {
         assert(0 && "Stack allocator free must be in LIFO order");
         return;
     }
 
-    // Rewind stack
+    // Rewind stack to previous offset
     stack->offset = prev_offset;
 }
 

@@ -28,13 +28,13 @@ void setUp(void)
     rs_path_append(&test_file_path, rs_sv_from_cstr("rs_test_read.txt"));
 
     // Create test file
-    rs_io_write_str(rs_sv_from_string(test_file_path), rs_sv_from_cstr(test_content));
+    rs_io_write_str(rs_sv_from_string(&test_file_path), rs_sv_from_cstr(test_content));
 }
 
 void tearDown(void)
 {
     // Clean up test file
-    rs_path_remove(rs_sv_from_string(test_file_path));
+    rs_path_remove(rs_sv_from_string(&test_file_path));
     rs_string_destroy(&test_file_path);
     rs_log_shutdown();
 }
@@ -45,7 +45,7 @@ void tearDown(void)
 
 void test_reader_open_close(void)
 {
-    rs_io_reader_t *reader = rs_io_reader_open(rs_sv_from_string(test_file_path));
+    rs_io_reader_t *reader = rs_io_reader_open(rs_sv_from_string(&test_file_path));
     TEST_ASSERT_NOT_NULL(reader);
 
     rs_io_reader_close(reader);
@@ -71,7 +71,7 @@ void test_read_all(void)
 {
     rs_string_t content = rs_string_create(.allocator = allocator);
 
-    rs_result_t result = rs_io_read_all(rs_sv_from_string(test_file_path), &content);
+    rs_result_t result = rs_io_read_all(rs_sv_from_string(&test_file_path), &content);
     TEST_ASSERT_EQUAL(RS_OK, result);
     TEST_ASSERT_TRUE(rs_string_eq_cstr(&content, test_content));
 
@@ -90,7 +90,7 @@ void test_read_all_nonexistent(void)
 
 void test_reader_read(void)
 {
-    rs_io_reader_t *reader = rs_io_reader_open(rs_sv_from_string(test_file_path));
+    rs_io_reader_t *reader = rs_io_reader_open(rs_sv_from_string(&test_file_path));
     TEST_ASSERT_NOT_NULL(reader);
 
     char buf[256];
@@ -107,7 +107,7 @@ void test_reader_read(void)
 
 void test_reader_read_chunks(void)
 {
-    rs_io_reader_t *reader = rs_io_reader_open(rs_sv_from_string(test_file_path));
+    rs_io_reader_t *reader = rs_io_reader_open(rs_sv_from_string(&test_file_path));
     TEST_ASSERT_NOT_NULL(reader);
 
     rs_string_t content = rs_string_create(.allocator = allocator);
@@ -126,7 +126,7 @@ void test_reader_read_chunks(void)
 
 void test_reader_read_exact(void)
 {
-    rs_io_reader_t *reader = rs_io_reader_open(rs_sv_from_string(test_file_path));
+    rs_io_reader_t *reader = rs_io_reader_open(rs_sv_from_string(&test_file_path));
     TEST_ASSERT_NOT_NULL(reader);
 
     char buf[13]; // "Hello, World!"
@@ -139,7 +139,7 @@ void test_reader_read_exact(void)
 
 void test_reader_read_exact_eof(void)
 {
-    rs_io_reader_t *reader = rs_io_reader_open(rs_sv_from_string(test_file_path));
+    rs_io_reader_t *reader = rs_io_reader_open(rs_sv_from_string(&test_file_path));
     TEST_ASSERT_NOT_NULL(reader);
 
     char buf[1024];
@@ -156,7 +156,7 @@ void test_reader_read_exact_eof(void)
 void test_pread(void)
 {
     char buf[6];
-    rs_ssize_t n = rs_io_pread(rs_sv_from_string(test_file_path), buf, 5, 7); // Read "World" at offset 7
+    rs_ssize_t n = rs_io_pread(rs_sv_from_string(&test_file_path), buf, 5, 7); // Read "World" at offset 7
     TEST_ASSERT_EQUAL(5, n);
     buf[5] = '\0';
     TEST_ASSERT_EQUAL_STRING("World", buf);
@@ -164,7 +164,7 @@ void test_pread(void)
 
 void test_reader_read_at(void)
 {
-    rs_io_reader_t *reader = rs_io_reader_open(rs_sv_from_string(test_file_path));
+    rs_io_reader_t *reader = rs_io_reader_open(rs_sv_from_string(&test_file_path));
     TEST_ASSERT_NOT_NULL(reader);
 
     // Read "World" at offset 7
@@ -190,7 +190,7 @@ void test_reader_read_at(void)
 
 void test_reader_seek_set(void)
 {
-    rs_io_reader_t *reader = rs_io_reader_open(rs_sv_from_string(test_file_path));
+    rs_io_reader_t *reader = rs_io_reader_open(rs_sv_from_string(&test_file_path));
     TEST_ASSERT_NOT_NULL(reader);
 
     // Seek to offset 7 ("World")
@@ -208,7 +208,7 @@ void test_reader_seek_set(void)
 
 void test_reader_seek_cur(void)
 {
-    rs_io_reader_t *reader = rs_io_reader_open(rs_sv_from_string(test_file_path));
+    rs_io_reader_t *reader = rs_io_reader_open(rs_sv_from_string(&test_file_path));
     TEST_ASSERT_NOT_NULL(reader);
 
     // Read "Hello"
@@ -229,7 +229,7 @@ void test_reader_seek_cur(void)
 
 void test_reader_seek_end(void)
 {
-    rs_io_reader_t *reader = rs_io_reader_open(rs_sv_from_string(test_file_path));
+    rs_io_reader_t *reader = rs_io_reader_open(rs_sv_from_string(&test_file_path));
     TEST_ASSERT_NOT_NULL(reader);
 
     // Seek to 5 bytes before end
@@ -247,7 +247,7 @@ void test_reader_seek_end(void)
 
 void test_reader_tell(void)
 {
-    rs_io_reader_t *reader = rs_io_reader_open(rs_sv_from_string(test_file_path));
+    rs_io_reader_t *reader = rs_io_reader_open(rs_sv_from_string(&test_file_path));
     TEST_ASSERT_NOT_NULL(reader);
 
     // Initial position should be 0
@@ -267,7 +267,7 @@ void test_reader_tell(void)
 
 void test_reader_size(void)
 {
-    rs_io_reader_t *reader = rs_io_reader_open(rs_sv_from_string(test_file_path));
+    rs_io_reader_t *reader = rs_io_reader_open(rs_sv_from_string(&test_file_path));
     TEST_ASSERT_NOT_NULL(reader);
 
     rs_ssize_t size = rs_io_reader_size(reader);

@@ -31,14 +31,6 @@ rs_string_view_t rs_sv_from_buf(const char *buf, rs_size_t len)
     return sv;
 }
 
-rs_string_view_t rs_sv_from_string(rs_string_t str)
-{
-    RS_TRACE_BEGIN_FMT("str=%p", (void *)&str);
-    rs_string_view_t sv = rs_sv_from_buf(rs_string_cstr(&str), rs_string_len(&str));
-    RS_TRACE_END();
-    return sv;
-}
-
 // ============================================================================
 // Slicing
 // ============================================================================

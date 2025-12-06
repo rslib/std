@@ -8,8 +8,10 @@
 #include <string.h>
 
 #ifdef _WIN32
+// clang-format off
+#include <windows.h>  // Must be included before bcrypt.h
 #include <bcrypt.h>
-#include <windows.h>
+// clang-format on
 #pragma comment(lib, "bcrypt.lib")
 #else
 #include <fcntl.h>
@@ -314,7 +316,7 @@ rs_result_t rs_crypto_decrypt_base64(rs_string_t *out, rs_string_view_t cipherte
     }
 
     // Decrypt data
-    result = rs_crypto_decrypt_with_password(out, rs_sv_from_string(encrypted), password);
+    result = rs_crypto_decrypt_with_password(out, rs_sv_from_string(&encrypted), password);
     rs_string_destroy(&encrypted);
 
     return result;

@@ -315,7 +315,7 @@ void test_base64_roundtrip_text(void)
     TEST_ASSERT_EQUAL(RS_OK, result);
 
     // Decode
-    result = rs_base64_decode(&decoded, rs_sv_from_string(encoded));
+    result = rs_base64_decode(&decoded, rs_sv_from_string(&encoded));
     TEST_ASSERT_EQUAL(RS_OK, result);
 
     // Should match original
@@ -341,7 +341,7 @@ void test_base64_roundtrip_binary(void)
     TEST_ASSERT_EQUAL(RS_OK, result);
 
     // Decode
-    result = rs_base64_decode(&decoded, rs_sv_from_string(encoded));
+    result = rs_base64_decode(&decoded, rs_sv_from_string(&encoded));
     TEST_ASSERT_EQUAL(RS_OK, result);
 
     // Should match original
@@ -362,7 +362,7 @@ void test_base64_roundtrip_empty(void)
     TEST_ASSERT_EQUAL(RS_OK, result);
 
     // Decode empty
-    result = rs_base64_decode(&decoded, rs_sv_from_string(encoded));
+    result = rs_base64_decode(&decoded, rs_sv_from_string(&encoded));
     TEST_ASSERT_EQUAL(RS_OK, result);
 
     TEST_ASSERT_EQUAL(0, rs_string_len(&decoded));

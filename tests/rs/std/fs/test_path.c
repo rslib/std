@@ -38,7 +38,7 @@ void test_path_get_home(void)
     TEST_ASSERT_TRUE(rs_string_len(&path) > 0);
 
     // Should be absolute path
-    TEST_ASSERT_TRUE(rs_path_is_absolute(rs_sv_from_string(path)));
+    TEST_ASSERT_TRUE(rs_path_is_absolute(rs_sv_from_string(&path)));
 
     rs_string_destroy(&path);
 }
@@ -51,7 +51,7 @@ void test_path_expand_tilde(void)
     rs_result_t result = rs_path_expand(&path, rs_sv_from_cstr("~"));
     TEST_ASSERT_EQUAL(RS_OK, result);
     TEST_ASSERT_TRUE(rs_string_len(&path) > 0);
-    TEST_ASSERT_TRUE(rs_path_is_absolute(rs_sv_from_string(path)));
+    TEST_ASSERT_TRUE(rs_path_is_absolute(rs_sv_from_string(&path)));
 
     // Test "~/config"
     result = rs_path_expand(&path, rs_sv_from_cstr("~/.config"));
@@ -360,7 +360,7 @@ void test_path_is_file(void)
     rs_path_append(&test_file, rs_sv_from_cstr("rs_test_is_file.txt"));
 
     // File doesn't exist yet
-    TEST_ASSERT_EQUAL(0, rs_path_is_file(rs_sv_from_string(test_file)));
+    TEST_ASSERT_EQUAL(0, rs_path_is_file(rs_sv_from_string(&test_file)));
 
     // Create file
     FILE *fp = fopen(rs_string_cstr(&test_file), "w");
@@ -370,10 +370,10 @@ void test_path_is_file(void)
     }
 
     // Should be recognized as a file
-    TEST_ASSERT_NOT_EQUAL(0, rs_path_is_file(rs_sv_from_string(test_file)));
+    TEST_ASSERT_NOT_EQUAL(0, rs_path_is_file(rs_sv_from_string(&test_file)));
 
     // Clean up
-    rs_path_remove(rs_sv_from_string(test_file));
+    rs_path_remove(rs_sv_from_string(&test_file));
     rs_string_destroy(&test_file);
 }
 
@@ -402,14 +402,14 @@ void test_path_remove_file(void)
         fclose(fp);
     }
 
-    TEST_ASSERT_NOT_EQUAL(0, rs_path_exists(rs_sv_from_string(test_file)));
+    TEST_ASSERT_NOT_EQUAL(0, rs_path_exists(rs_sv_from_string(&test_file)));
 
     // Remove file
-    rs_result_t result = rs_path_remove(rs_sv_from_string(test_file));
+    rs_result_t result = rs_path_remove(rs_sv_from_string(&test_file));
     TEST_ASSERT_EQUAL(RS_OK, result);
 
     // File should no longer exist
-    TEST_ASSERT_EQUAL(0, rs_path_exists(rs_sv_from_string(test_file)));
+    TEST_ASSERT_EQUAL(0, rs_path_exists(rs_sv_from_string(&test_file)));
 
     rs_string_destroy(&test_file);
 }
@@ -440,16 +440,16 @@ void test_path_symlink(void)
     }
 
     // Create symlink
-    rs_result_t result = rs_path_symlink(rs_sv_from_string(target), rs_sv_from_string(link));
+    rs_result_t result = rs_path_symlink(rs_sv_from_string(&target), rs_sv_from_string(&link));
     TEST_ASSERT_EQUAL(RS_OK, result);
 
     // Link should exist
-    TEST_ASSERT_NOT_EQUAL(0, rs_path_exists(rs_sv_from_string(link)));
-    TEST_ASSERT_NOT_EQUAL(0, rs_path_is_symlink(rs_sv_from_string(link)));
+    TEST_ASSERT_NOT_EQUAL(0, rs_path_exists(rs_sv_from_string(&link)));
+    TEST_ASSERT_NOT_EQUAL(0, rs_path_is_symlink(rs_sv_from_string(&link)));
 
     // Clean up
-    rs_path_remove(rs_sv_from_string(link));
-    rs_path_remove(rs_sv_from_string(target));
+    rs_path_remove(rs_sv_from_string(&link));
+    rs_path_remove(rs_sv_from_string(&target));
 
     rs_string_destroy(&target);
     rs_string_destroy(&link);
@@ -475,16 +475,16 @@ void test_path_read_symlink(void)
     }
 
     // Create symlink
-    rs_path_symlink(rs_sv_from_string(target), rs_sv_from_string(link));
+    rs_path_symlink(rs_sv_from_string(&target), rs_sv_from_string(&link));
 
     // Read symlink
-    rs_result_t res = rs_path_read_symlink(rs_sv_from_string(link), &result);
+    rs_result_t res = rs_path_read_symlink(rs_sv_from_string(&link), &result);
     TEST_ASSERT_EQUAL(RS_OK, res);
     TEST_ASSERT_TRUE(rs_string_eq(&result, &target));
 
     // Clean up
-    rs_path_remove(rs_sv_from_string(link));
-    rs_path_remove(rs_sv_from_string(target));
+    rs_path_remove(rs_sv_from_string(&link));
+    rs_path_remove(rs_sv_from_string(&target));
 
     rs_string_destroy(&target);
     rs_string_destroy(&link);
@@ -510,17 +510,17 @@ void test_path_is_symlink(void)
     }
 
     // Target should not be a symlink
-    TEST_ASSERT_EQUAL(0, rs_path_is_symlink(rs_sv_from_string(target)));
+    TEST_ASSERT_EQUAL(0, rs_path_is_symlink(rs_sv_from_string(&target)));
 
     // Create symlink
-    rs_path_symlink(rs_sv_from_string(target), rs_sv_from_string(link));
+    rs_path_symlink(rs_sv_from_string(&target), rs_sv_from_string(&link));
 
     // Link should be a symlink
-    TEST_ASSERT_NOT_EQUAL(0, rs_path_is_symlink(rs_sv_from_string(link)));
+    TEST_ASSERT_NOT_EQUAL(0, rs_path_is_symlink(rs_sv_from_string(&link)));
 
     // Clean up
-    rs_path_remove(rs_sv_from_string(link));
-    rs_path_remove(rs_sv_from_string(target));
+    rs_path_remove(rs_sv_from_string(&link));
+    rs_path_remove(rs_sv_from_string(&target));
 
     rs_string_destroy(&target);
     rs_string_destroy(&link);
@@ -542,20 +542,20 @@ void test_path_integration(void)
     rs_path_append(&path, rs_sv_from_cstr("init.lua"));
 
     // Check it's absolute
-    TEST_ASSERT_TRUE(rs_path_is_absolute(rs_sv_from_string(path)));
+    TEST_ASSERT_TRUE(rs_path_is_absolute(rs_sv_from_string(&path)));
 
     // Check it ends with correct parts
     TEST_ASSERT_TRUE(rs_string_ends_with(&path, "init.lua"));
-    TEST_ASSERT_TRUE(rs_path_has_extension(rs_sv_from_string(path), ".lua"));
+    TEST_ASSERT_TRUE(rs_path_has_extension(rs_sv_from_string(&path), ".lua"));
 
     // Get basename
     rs_string_t basename = rs_string_create(.allocator = allocator);
-    rs_path_basename(&basename, rs_sv_from_string(path));
+    rs_path_basename(&basename, rs_sv_from_string(&path));
     TEST_ASSERT_TRUE(rs_string_eq_cstr(&basename, "init.lua"));
 
     // Get dirname
     rs_string_t dirname = rs_string_create(.allocator = allocator);
-    rs_path_dirname(&dirname, rs_sv_from_string(path));
+    rs_path_dirname(&dirname, rs_sv_from_string(&path));
     TEST_ASSERT_TRUE(rs_string_ends_with(&dirname, "nvim"));
 
     rs_string_destroy(&path);
@@ -572,7 +572,7 @@ void test_path_normalize_integration(void)
     rs_path_normalize(&path);
 
     // Should be absolute and normalized
-    TEST_ASSERT_TRUE(rs_path_is_absolute(rs_sv_from_string(path)));
+    TEST_ASSERT_TRUE(rs_path_is_absolute(rs_sv_from_string(&path)));
     TEST_ASSERT_TRUE(rs_string_ends_with(&path, "baz"));
 
     rs_string_destroy(&path);

@@ -197,7 +197,7 @@ rs_result_t rs_path_expand(rs_string_t *out, rs_string_view_t path)
     }
 
     // Then expand environment variables
-    result = rs_env_expand(out, rs_sv_from_string(tilde_expanded));
+    result = rs_env_expand(out, rs_sv_from_string(&tilde_expanded));
     rs_string_destroy(&tilde_expanded);
 
     return result;
@@ -316,7 +316,7 @@ rs_result_t rs_path_normalize(rs_string_t *path)
     RS_CHECK(path != NULL, RS_ERR_INVALID, "Path is NULL");
 
     const char *path_str = rs_string_cstr(path);
-    int is_absolute = rs_path_is_absolute(rs_sv_from_string(*path));
+    int is_absolute = rs_path_is_absolute(rs_sv_from_string(path));
 
     // Create temporary result string
     rs_string_t result = rs_string_create(.allocator = rs_string_get_allocator(path));

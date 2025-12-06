@@ -112,7 +112,11 @@
       in
       {
         devShells.default = pkgs.mkShell {
-          inherit buildInputs;
+          buildInputs =
+            buildInputs
+            ++ (with pkgs; [
+              act
+            ]);
           nativeBuildInputs =
             nativeBuildInputs
             ++ (

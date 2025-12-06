@@ -59,6 +59,22 @@
         "RS_STD_BUILD_TESTS": "ON",
         "RS_STD_ENABLE_TRACE_LOGS": "ON"
       }
+    },
+    {
+      "name": "test-asan",
+      "displayName": "Test with AddressSanitizer",
+      "inherits": "test",
+      "cacheVariables": {
+        "RS_STD_ENABLE_ASAN": "ON"
+      }
+    },
+    {
+      "name": "test-ubsan",
+      "displayName": "Test with UndefinedBehaviorSanitizer",
+      "inherits": "test",
+      "cacheVariables": {
+        "RS_STD_ENABLE_UBSAN": "ON"
+      }
     }
   ],
   "buildPresets": [
@@ -77,12 +93,34 @@
     {
       "name": "test",
       "configurePreset": "test"
+    },
+    {
+      "name": "test-asan",
+      "configurePreset": "test-asan"
+    },
+    {
+      "name": "test-ubsan",
+      "configurePreset": "test-ubsan"
     }
   ],
   "testPresets": [
     {
       "name": "test",
       "configurePreset": "test",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "test-asan",
+      "configurePreset": "test-asan",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "test-ubsan",
+      "configurePreset": "test-ubsan",
       "output": {
         "outputOnFailure": true
       }

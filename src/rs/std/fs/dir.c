@@ -66,19 +66,19 @@ rs_result_t rs_dir_create_all(rs_string_view_t path, rs_file_mode_t mode)
     rs_path_normalize(&normalized);
 
     // Skip if already exists
-    if (rs_dir_exists(rs_sv_from_string(normalized))) {
+    if (rs_dir_exists(rs_sv_from_string(&normalized))) {
         rs_string_destroy(&normalized);
         return RS_OK;
     }
 
     // Get parent directory
     rs_string_t parent = rs_string_create(.allocator = alloc);
-    rs_path_dirname(&parent, rs_sv_from_string(normalized));
+    rs_path_dirname(&parent, rs_sv_from_string(&normalized));
 
     // Recursively create parent if it doesn't exist
     if (!rs_string_eq_cstr(&parent, ".") && !rs_string_eq_cstr(&parent, "/") &&
-        !rs_dir_exists(rs_sv_from_string(parent))) {
-        rs_result_t result = rs_dir_create_all(rs_sv_from_string(parent), mode);
+        !rs_dir_exists(rs_sv_from_string(&parent))) {
+        rs_result_t result = rs_dir_create_all(rs_sv_from_string(&parent), mode);
         if (result != RS_OK) {
             rs_string_destroy(&parent);
             rs_string_destroy(&normalized);
@@ -89,7 +89,7 @@ rs_result_t rs_dir_create_all(rs_string_view_t path, rs_file_mode_t mode)
     rs_string_destroy(&parent);
 
     // Create the directory itself
-    rs_result_t result = rs_dir_create(rs_sv_from_string(normalized), mode);
+    rs_result_t result = rs_dir_create(rs_sv_from_string(&normalized), mode);
     rs_string_destroy(&normalized);
 
     return result;
@@ -135,13 +135,13 @@ rs_result_t rs_dir_remove_all(rs_string_view_t path)
 
         // Build full path
         rs_string_t full_path = rs_string_from_buf(rs_sv_data(path), rs_sv_len(path), .allocator = alloc);
-        rs_path_append(&full_path, rs_sv_from_string(*entry));
+        rs_path_append(&full_path, rs_sv_from_string(entry));
 
         // Check if it's a directory
-        if (rs_path_is_dir(rs_sv_from_string(full_path))) {
-            result = rs_dir_remove_all(rs_sv_from_string(full_path));
+        if (rs_path_is_dir(rs_sv_from_string(&full_path))) {
+            result = rs_dir_remove_all(rs_sv_from_string(&full_path));
         } else {
-            result = rs_path_remove(rs_sv_from_string(full_path));
+            result = rs_path_remove(rs_sv_from_string(&full_path));
         }
 
         rs_string_destroy(&full_path);
@@ -184,17 +184,11 @@ rs_result_t rs_dir_read(rs_string_view_t path, rs_array_t *out)
     rs_string_t search_path = rs_string_from_cstr(path_cstr, .allocator = alloc);
     rs_path_append(&search_path, rs_sv_from_cstr("*"));
 
-    char *search_cstr = rs_string_to_cstr(&search_path);
-    rs_string_destroy(&search_path);
     free(path_cstr);
 
-    if (!search_cstr) {
-        return RS_ERROR_RET(RS_ERR_NOMEM, "Failed to allocate search path string");
-    }
-
     WIN32_FIND_DATAA find_data;
-    HANDLE handle = FindFirstFileA(search_cstr, &find_data);
-    free(search_cstr);
+    HANDLE handle = FindFirstFileA(rs_string_cstr(&search_path), &find_data);
+    rs_string_destroy(&search_path);
 
     if (handle == INVALID_HANDLE_VALUE) {
         return RS_ERROR_RET(RS_ERR_IO, "Failed to open directory");

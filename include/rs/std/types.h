@@ -64,18 +64,19 @@ typedef unsigned int rs_file_mode_t;
  * All error codes are negative, RS_OK is 0, positive values indicate special status.
  */
 typedef enum {
-    RS_OK = 0,            // Success
-    RS_DONE = 1,          // Operation completed (no more data)
-    RS_ERR_NOMEM = -1,    // Out of memory
-    RS_ERR_IO = -2,       // I/O error
-    RS_ERR_NOTFOUND = -3, // Not found
-    RS_ERR_INVALID = -4,  // Invalid argument
-    RS_ERR_SYSTEM = -5,   // System error
-    RS_ERR_CRYPTO = -6,   // Cryptography error
-    RS_ERR_DB = -7,       // Database error
-    RS_ERR_OVERFLOW = -8, // Overflow/underflow
-    RS_ERR_EOF = -9,      // End of file
-    RS_ERR_TIMEOUT = -10  // Timeout
+    RS_OK = 0,               // Success
+    RS_DONE = 1,             // Operation completed (no more data)
+    RS_ERR_NOMEM = -1,       // Out of memory
+    RS_ERR_IO = -2,          // I/O error
+    RS_ERR_NOTFOUND = -3,    // Not found
+    RS_ERR_INVALID = -4,     // Invalid argument
+    RS_ERR_SYSTEM = -5,      // System error
+    RS_ERR_CRYPTO = -6,      // Cryptography error
+    RS_ERR_DB = -7,          // Database error
+    RS_ERR_OVERFLOW = -8,    // Overflow/underflow
+    RS_ERR_EOF = -9,         // End of file
+    RS_ERR_TIMEOUT = -10,    // Timeout
+    RS_ERR_UNSUPPORTED = -11 // Operation not supported
 } rs_result_t;
 
 /**

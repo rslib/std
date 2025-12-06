@@ -14,8 +14,14 @@ RS_EXTERN_C_BEGIN
  * - Can contain null bytes
  * - Always null-terminated for C compatibility
  * - Owns its memory
- * - Uses custom allocator
- * - Small strings (≤23 bytes on 64-bit) stored inline (no allocation)
+ * - Uses custom allocator (preserved even for small strings)
+ * - Small strings (≤22 bytes on 64-bit) stored inline (no allocation)
+ *
+ * Memory layout (32 bytes total):
+ *   Large: [data:8][len:8][cap:8][allocator:8]
+ *   Small: [buf:23][len:1][allocator:8]
+ *   The allocator is always at offset 24, accessible in both modes.
+ *   The MSB of cap (offset 23) doubles as the large flag, overlapping with small.len.
  *
  * Example:
  *   rs_arena_t *arena = rs_arena_create(1024);
@@ -27,23 +33,30 @@ RS_EXTERN_C_BEGIN
 typedef struct {
     union {
         // Large string: heap-allocated
+        // The MSB of cap (at offset 23 on little-endian) is the large flag (1 = large)
         struct {
-            char *data;                // Heap-allocated data
-            rs_size_t len;             // Length
-            rs_size_t cap;             // Capacity
-            rs_allocator_t *allocator; // Allocator
+            char *data;                // offset 0-7: Heap-allocated data
+            rs_size_t len;             // offset 8-15: Length
+            rs_size_t cap;             // offset 16-23: Capacity (MSB is large flag)
+            rs_allocator_t *allocator; // offset 24-31: Allocator
         } large;
 
         // Small string: inline storage
+        // Allocator is at same offset as large.allocator for unified access
         struct {
-            char buf[sizeof(char *) + sizeof(rs_size_t) * 2 + sizeof(rs_allocator_t *) - 1];
-            unsigned char len; // Length stored in last byte (MSB = 0 for small)
+            char buf[23];              // offset 0-22: Inline buffer (22 chars + null)
+            unsigned char len;         // offset 23: Length (MSB=0 means small string)
+            rs_allocator_t *allocator; // offset 24-31: Allocator (same position as large)
         } small;
     } u;
 } rs_string_t;
 
-// SSO threshold (max small string length excluding null terminator)
-#define RS_STRING_SSO_CAP (sizeof(((rs_string_t *)0)->u.small.buf) - 1)
+// SSO threshold: 22 characters (23-byte buffer minus null terminator)
+#define RS_STRING_SSO_CAP 22
+
+// Flag stored in MSB of cap to indicate large string
+#define RS_STRING_LARGE_FLAG ((rs_size_t)1 << (sizeof(rs_size_t) * 8 - 1))
+#define RS_STRING_CAP_MASK (~RS_STRING_LARGE_FLAG)
 
 // ============================================================================
 // Format Specifiers
@@ -214,11 +227,13 @@ RS_STD_API void rs_string_destroy(rs_string_t *str);
 
 /**
  * Check if string is using small string optimization.
+ * Large strings have the MSB of cap set (RS_STRING_LARGE_FLAG).
  */
 static inline rs_bool rs_string_is_small(const rs_string_t *str)
 {
-    // Small strings have MSB of len byte = 0, large strings have MSB = 1
-    return (str->u.small.len & 0x80) == 0;
+    // Large strings have RS_STRING_LARGE_FLAG set in cap
+    // For small strings, cap overlaps with small.buf which is typically 0 or low values
+    return (str->u.large.cap & RS_STRING_LARGE_FLAG) == 0;
 }
 
 /**
@@ -240,7 +255,8 @@ static inline rs_size_t rs_string_cap(const rs_string_t *str)
     if (rs_string_is_small(str)) {
         return RS_STRING_SSO_CAP;
     }
-    return str->u.large.cap;
+    // Mask off the large flag to get the actual capacity
+    return str->u.large.cap & RS_STRING_CAP_MASK;
 }
 
 /**
@@ -275,12 +291,12 @@ static inline rs_bool rs_string_is_empty(const rs_string_t *str)
 
 /**
  * Get allocator from string.
- * For small strings (SSO), returns system allocator.
- * For large strings, returns the stored allocator.
+ * The allocator is always stored at offset 24, accessible in both SSO and large modes.
  */
 static inline rs_allocator_t *rs_string_get_allocator(const rs_string_t *str)
 {
-    return rs_string_is_small(str) ? rs_allocator_system() : str->u.large.allocator;
+    // Allocator is at the same offset in both small and large layouts
+    return str->u.small.allocator;
 }
 
 // ============================================================================

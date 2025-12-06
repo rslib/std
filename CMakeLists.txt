@@ -37,6 +37,19 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORS_COMPILE_COMMANDS ON)
 
+# RPATH settings for finding shared libraries at runtime
+set(CMAKE_SKIP_BUILD_RPATH FALSE)
+set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+# Use $ORIGIN on Linux, @loader_path on macOS
+if(APPLE)
+  set(CMAKE_INSTALL_RPATH "@loader_path/../lib")
+else()
+  set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib")
+endif()
+# For build tree, use the binary lib directory
+set(CMAKE_BUILD_RPATH "${CMAKE_BINARY_DIR}/lib")
+
 # ##############################################################################
 # Options
 # ##############################################################################
@@ -51,6 +64,8 @@ option(
   "Force building SQLite3 from source instead of using system package"
   OFF
 )
+option(RS_STD_ENABLE_ASAN "Enable AddressSanitizer for debugging" OFF)
+option(RS_STD_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
 
 # Logging options
 option(RS_STD_ENABLE_LOGGING "Enable logging system" ON)
@@ -71,6 +86,22 @@ set_property(
   CACHE RS_STD_LOG_LEVEL
   PROPERTY STRINGS TRACE DEBUG INFO WARN ERROR FATAL OFF
 )
+
+# ##############################################################################
+# Sanitizer Configuration
+# ##############################################################################
+
+if(RS_STD_ENABLE_ASAN)
+  message(STATUS "AddressSanitizer enabled")
+  add_compile_options(-fsanitize=address -fno-omit-frame-pointer -g)
+  add_link_options(-fsanitize=address)
+endif()
+
+if(RS_STD_ENABLE_UBSAN)
+  message(STATUS "UndefinedBehaviorSanitizer enabled")
+  add_compile_options(-fsanitize=undefined -fno-omit-frame-pointer -g)
+  add_link_options(-fsanitize=undefined)
+endif()
 
 # ##############################################################################
 # Internal Paths for cmake libraries and Setup install and output Directories
