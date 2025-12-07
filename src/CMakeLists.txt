@@ -77,6 +77,7 @@ endif()
 rs_create_library(
     NAME rs_std
     NAMESPACE rs
+    EXPORT_NAME std
     SOURCES
         # Error handling
         rs/std/error.c

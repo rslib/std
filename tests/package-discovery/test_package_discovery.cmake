@@ -87,186 +87,45 @@ elseif(TEST_TYPE STREQUAL "dependency")
   message(STATUS "   Config file: ${${LIBRARY_NAME_UPPER}_DEP_CONFIG}")
 elseif(TEST_TYPE STREQUAL "target")
   # Test specific target alias by checking config files
+  # LIBRARY_NAME must be provided to specify which library's config to check
   message(STATUS "Testing target alias: ${TARGET_ALIAS}")
 
-  # Derive library name from target alias (e.g., rs::rs_std_shared -> rs_std)
-  string(REGEX REPLACE "^.*::" "" TARGET_NAME "${TARGET_ALIAS}")
-
-  # Determine variant and base library name from different naming patterns:
-  # Pattern 1: rs::rs_std_shared (namespace::name_variant)
-  # Pattern 2: rs_std::shared (name::variant)
-  # Pattern 3: rs_std::rs_std (name::name - default/header-only)
-  if(TARGET_NAME MATCHES "^(.+)_(shared|static)$")
-    # Pattern 1: name_variant
-    set(BASE_LIBRARY_NAME "${CMAKE_MATCH_1}")
-    set(VARIANT "${CMAKE_MATCH_2}")
-  elseif(TARGET_NAME MATCHES "^(shared|static)$")
-    # Pattern 2: variant only, need to extract base name from alias
-    set(VARIANT "${TARGET_NAME}")
-    # Extract namespace part before :: (e.g., cfgmgr from cfgmgr::shared)
-    string(REGEX REPLACE "::.*$" "" BASE_LIBRARY_NAME "${TARGET_ALIAS}")
-  else()
-    # Pattern 3: Assume it's the base target (e.g., cfgmgr::cfgmgr)
-    # Check both shared and static configs, prefer shared
-    set(BASE_LIBRARY_NAME "${TARGET_NAME}")
-    set(VARIANT "shared")
-    set(CHECK_BOTH_VARIANTS ON)
+  if(NOT LIBRARY_NAME)
+    message(FATAL_ERROR "LIBRARY_NAME is required for target alias tests")
   endif()
 
-  string(TOUPPER "${BASE_LIBRARY_NAME}" BASE_LIBRARY_NAME_UPPER)
+  string(TOUPPER "${LIBRARY_NAME}" LIBRARY_NAME_UPPER)
 
-  # For base targets (e.g., cfgmgr::cfgmgr), check unified config first
-  set(CONFIG_ALIAS_FOUND -1)
-  set(TARGETS_ALIAS_FOUND -1)
-
-  if(CHECK_BOTH_VARIANTS)
-    # Check unified config file first (search both lib and lib64)
-    find_file(
-      ${BASE_LIBRARY_NAME_UPPER}_UNIFIED_CONFIG
-      NAMES ${BASE_LIBRARY_NAME}Config.cmake
-      PATHS ${CMAKE_PREFIX_PATH}
-      PATH_SUFFIXES
-        lib/cmake/${BASE_LIBRARY_NAME}
-        lib64/cmake/${BASE_LIBRARY_NAME}
-      NO_DEFAULT_PATH
-    )
-
-    if(${BASE_LIBRARY_NAME_UPPER}_UNIFIED_CONFIG)
-      file(READ ${${BASE_LIBRARY_NAME_UPPER}_UNIFIED_CONFIG} CONFIG_CONTENT)
-      string(FIND "${CONFIG_CONTENT}" "${TARGET_ALIAS}" CONFIG_ALIAS_FOUND)
-
-      if(CONFIG_ALIAS_FOUND GREATER -1)
-        message(STATUS "✅ Target alias test successful: ${TARGET_ALIAS}")
-        message(
-          STATUS
-          "   Found in unified config file: ${${BASE_LIBRARY_NAME_UPPER}_UNIFIED_CONFIG}"
-        )
-        return()
-      endif()
-    endif()
-
-    # If not found in unified config, try both shared and static
-    foreach(VARIANT_TO_CHECK shared static)
-      find_file(
-        ${BASE_LIBRARY_NAME_UPPER}_${VARIANT_TO_CHECK}_CONFIG_CHECK
-        NAMES ${BASE_LIBRARY_NAME}_${VARIANT_TO_CHECK}Config.cmake
-        PATHS ${CMAKE_PREFIX_PATH}
-        PATH_SUFFIXES
-          lib/cmake/${BASE_LIBRARY_NAME}_${VARIANT_TO_CHECK}
-          lib64/cmake/${BASE_LIBRARY_NAME}_${VARIANT_TO_CHECK}
-        NO_DEFAULT_PATH
-      )
-
-      if(${BASE_LIBRARY_NAME_UPPER}_${VARIANT_TO_CHECK}_CONFIG_CHECK)
-        file(
-          READ ${${BASE_LIBRARY_NAME_UPPER}_${VARIANT_TO_CHECK}_CONFIG_CHECK}
-          CONFIG_CONTENT
-        )
-        string(FIND "${CONFIG_CONTENT}" "${TARGET_ALIAS}" CONFIG_ALIAS_FOUND)
-
-        if(CONFIG_ALIAS_FOUND GREATER -1)
-          message(STATUS "✅ Target alias test successful: ${TARGET_ALIAS}")
-          message(
-            STATUS
-            "   Found in ${VARIANT_TO_CHECK} config file: ${${BASE_LIBRARY_NAME_UPPER}_${VARIANT_TO_CHECK}_CONFIG_CHECK}"
-          )
-          return()
-        endif()
-      endif()
-    endforeach()
-
-    message(
-      FATAL_ERROR
-      "❌ Target alias test failed: ${TARGET_ALIAS} not found in any config files"
-    )
-  endif()
-
-  # Check unified config file first (aliases like cfgmgr::shared are defined there)
+  # Check unified config file (e.g., rs_stdConfig.cmake)
   find_file(
-    ${BASE_LIBRARY_NAME_UPPER}_UNIFIED_CONFIG_CHECK
-    NAMES ${BASE_LIBRARY_NAME}Config.cmake
+    ${LIBRARY_NAME_UPPER}_CONFIG
+    NAMES ${LIBRARY_NAME}Config.cmake
     PATHS ${CMAKE_PREFIX_PATH}
-    PATH_SUFFIXES
-      lib/cmake/${BASE_LIBRARY_NAME}
-      lib64/cmake/${BASE_LIBRARY_NAME}
+    PATH_SUFFIXES lib/cmake/${LIBRARY_NAME} lib64/cmake/${LIBRARY_NAME}
     NO_DEFAULT_PATH
   )
 
-  if(${BASE_LIBRARY_NAME_UPPER}_UNIFIED_CONFIG_CHECK)
-    file(READ ${${BASE_LIBRARY_NAME_UPPER}_UNIFIED_CONFIG_CHECK} CONFIG_CONTENT)
-    string(FIND "${CONFIG_CONTENT}" "${TARGET_ALIAS}" CONFIG_ALIAS_FOUND)
-
-    if(CONFIG_ALIAS_FOUND GREATER -1)
-      message(STATUS "✅ Target alias test successful: ${TARGET_ALIAS}")
-      message(
-        STATUS
-        "   Found in unified config file: ${${BASE_LIBRARY_NAME_UPPER}_UNIFIED_CONFIG_CHECK}"
-      )
-      return()
-    endif()
-  endif()
-
-  # If not found in unified config, check variant-specific config
-  find_file(
-    ${BASE_LIBRARY_NAME_UPPER}_${VARIANT}_CONFIG
-    NAMES ${BASE_LIBRARY_NAME}_${VARIANT}Config.cmake
-    PATHS ${CMAKE_PREFIX_PATH}
-    PATH_SUFFIXES
-      lib/cmake/${BASE_LIBRARY_NAME}_${VARIANT}
-      lib64/cmake/${BASE_LIBRARY_NAME}_${VARIANT}
-    NO_DEFAULT_PATH
-  )
-
-  if(NOT ${BASE_LIBRARY_NAME_UPPER}_${VARIANT}_CONFIG)
+  if(NOT ${LIBRARY_NAME_UPPER}_CONFIG)
     message(
       FATAL_ERROR
-      "❌ Target alias test failed: "
-      "${BASE_LIBRARY_NAME}_${VARIANT}Config.cmake not found"
+      "❌ Target alias test failed: ${LIBRARY_NAME}Config.cmake not found"
     )
   endif()
 
-  # Read config file to check if the target alias exists
-  file(READ ${${BASE_LIBRARY_NAME_UPPER}_${VARIANT}_CONFIG} CONFIG_CONTENT)
+  # Read config file and check if the target alias is defined
+  file(READ ${${LIBRARY_NAME_UPPER}_CONFIG} CONFIG_CONTENT)
   string(FIND "${CONFIG_CONTENT}" "${TARGET_ALIAS}" CONFIG_ALIAS_FOUND)
 
-  # Also check targets file
-  find_file(
-    ${BASE_LIBRARY_NAME_UPPER}_${VARIANT}_TARGETS
-    NAMES ${BASE_LIBRARY_NAME}_${VARIANT}Targets.cmake
-    PATHS ${CMAKE_PREFIX_PATH}
-    PATH_SUFFIXES
-      lib/cmake/${BASE_LIBRARY_NAME}_${VARIANT}
-      lib64/cmake/${BASE_LIBRARY_NAME}_${VARIANT}
-    NO_DEFAULT_PATH
-  )
-
-  set(TARGETS_ALIAS_FOUND -1)
-  if(${BASE_LIBRARY_NAME_UPPER}_${VARIANT}_TARGETS)
-    file(READ ${${BASE_LIBRARY_NAME_UPPER}_${VARIANT}_TARGETS} TARGETS_CONTENT)
-    string(FIND "${TARGETS_CONTENT}" "${TARGET_ALIAS}" TARGETS_ALIAS_FOUND)
-  endif()
-
-  if(CONFIG_ALIAS_FOUND EQUAL -1 AND TARGETS_ALIAS_FOUND EQUAL -1)
+  if(CONFIG_ALIAS_FOUND EQUAL -1)
     message(
       FATAL_ERROR
       "❌ Target alias test failed: ${TARGET_ALIAS} not found in "
-      "config or targets files"
+      "${LIBRARY_NAME}Config.cmake"
     )
   endif()
 
   message(STATUS "✅ Target alias test successful: ${TARGET_ALIAS}")
-  if(CONFIG_ALIAS_FOUND GREATER -1)
-    message(
-      STATUS
-      "   Found in config file: ${${BASE_LIBRARY_NAME_UPPER}_${VARIANT}_CONFIG}"
-    )
-  endif()
-  if(TARGETS_ALIAS_FOUND GREATER -1)
-    message(
-      STATUS
-      "   Found in targets file: ${${BASE_LIBRARY_NAME_UPPER}_${VARIANT}_TARGETS}"
-    )
-  endif()
+  message(STATUS "   Found in config file: ${${LIBRARY_NAME_UPPER}_CONFIG}")
 else()
   message(
     FATAL_ERROR

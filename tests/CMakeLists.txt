@@ -16,7 +16,7 @@ Usage:
 
 This function:
 - Creates an executable with the given name and sources
-- Links to rs::rs_std and Unity
+- Links to rs::std and Unity
 - Links to any additional dependencies specified
 - Registers the test with CTest
 #]=]
@@ -52,7 +52,7 @@ function(rs_add_test)
   endif()
 
   # Link to rs_std
-  target_link_libraries(${TEST_NAME} PRIVATE rs::rs_std)
+  target_link_libraries(${TEST_NAME} PRIVATE rs::std)
 
   # MSVC parallel builds need explicit dependencies to ensure import libraries
   # are fully generated before linking tests

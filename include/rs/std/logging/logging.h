@@ -1,7 +1,7 @@
 #pragma once
 
 /**
- * High-performance logging system for raytools.
+ * High-performance logging system.
  *
  * Features:
  * - Thread-local buffers (zero contention, lock-free writes)

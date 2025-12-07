@@ -15,8 +15,9 @@ Creates a C library with automatic shared/static variants, complete with:
 
 Usage:
   rs_create_library(
-    NAME base_name                    # e.g., "cfgmgr"
-    NAMESPACE namespace               # e.g., "raytools" -> creates rs::cfgmgr_shared
+    NAME base_name                    # e.g., "rs_std"
+    NAMESPACE namespace               # e.g., "rs"
+    [EXPORT_NAME export_name]         # e.g., "std" -> creates rs::std and rs::std_static
     SOURCES file1.c file2.c ...       # Source files
     [PUBLIC_HEADERS file1.h ...]      # Public headers to install
     [VERSION version]                 # Defaults to PROJECT_VERSION
@@ -74,6 +75,7 @@ function(rs_create_library)
     oneValueArgs
     NAME
     NAMESPACE
+    EXPORT_NAME
     VERSION
     DESCRIPTION
     URL
@@ -118,6 +120,12 @@ function(rs_create_library)
 
   if(NOT LIB_NAMESPACE)
     set(LIB_NAMESPACE ${LIB_NAME})
+  endif()
+
+  # EXPORT_NAME is used for exported target aliases (e.g., rs::std instead of rs_std::shared)
+  # If not provided, defaults to NAME
+  if(NOT LIB_EXPORT_NAME)
+    set(LIB_EXPORT_NAME ${LIB_NAME})
   endif()
 
   # Set defaults
@@ -320,7 +328,10 @@ function(rs_create_library)
   if(BUILD_SHARED_LIB)
     set(SHARED_TARGET_NAME ${LIB_NAME}_shared)
     add_library(${SHARED_TARGET_NAME} SHARED ${LIB_SOURCES})
-    add_library(${LIB_NAMESPACE}::shared ALIAS ${SHARED_TARGET_NAME})
+    add_library(
+      ${LIB_NAMESPACE}::${LIB_EXPORT_NAME}
+      ALIAS ${SHARED_TARGET_NAME}
+    )
 
     # Set output name to base name (without _shared suffix)
     get_filename_component(BASE_NAME ${LIB_NAME} NAME)
@@ -386,7 +397,10 @@ function(rs_create_library)
   if(BUILD_STATIC_LIB)
     set(STATIC_TARGET_NAME ${LIB_NAME}_static)
     add_library(${STATIC_TARGET_NAME} STATIC ${LIB_SOURCES})
-    add_library(${LIB_NAMESPACE}::static ALIAS ${STATIC_TARGET_NAME})
+    add_library(
+      ${LIB_NAMESPACE}::${LIB_EXPORT_NAME}_static
+      ALIAS ${STATIC_TARGET_NAME}
+    )
 
     # Set output name to base name (without _static suffix)
     get_filename_component(BASE_NAME ${LIB_NAME} NAME)
@@ -442,6 +456,8 @@ function(rs_create_library)
   if(NOT BUILD_INTERFACE_LIB)
     rs_create_unified_library_config(
       NAME ${LIB_NAME}
+      NAMESPACE ${LIB_NAMESPACE}
+      EXPORT_NAME "${LIB_EXPORT_NAME}"
       VERSION ${LIB_VERSION}
       DESCRIPTION "${LIB_DESCRIPTION}"
       URL "${LIB_URL}"
@@ -452,15 +468,6 @@ function(rs_create_library)
       BUILD_STATIC ${BUILD_STATIC_LIB}
       STATIC_PKG_CONFIG_DEPS ${LIB_STATIC_PKG_CONFIG_DEPS}
     )
-
-    # Create unified alias for build tree (${LIB_NAMESPACE}::${LIB_NAME})
-    # This allows tests to link to the library during build
-    # (the unified config is only available after installation)
-    if(BUILD_SHARED_LIB)
-      add_library(${LIB_NAMESPACE}::${LIB_NAME} ALIAS ${SHARED_TARGET_NAME})
-    elseif(BUILD_STATIC_LIB)
-      add_library(${LIB_NAMESPACE}::${LIB_NAME} ALIAS ${STATIC_TARGET_NAME})
-    endif()
   endif()
 
   # Return list of all created targets
@@ -639,6 +646,8 @@ function(rs_create_unified_library_config)
   set(
     oneValueArgs
     NAME
+    NAMESPACE
+    EXPORT_NAME
     VERSION
     DESCRIPTION
     URL
@@ -659,6 +668,16 @@ function(rs_create_unified_library_config)
 
   if(NOT CFG_NAME)
     message(FATAL_ERROR "NAME is required for rs_create_unified_library_config")
+  endif()
+
+  if(NOT CFG_NAMESPACE)
+    set(CFG_NAMESPACE ${CFG_NAME})
+  endif()
+
+  # EXPORT_NAME is used for exported target aliases (e.g., rs::std instead of rs_std::shared)
+  # If not provided, defaults to NAME
+  if(NOT CFG_EXPORT_NAME)
+    set(CFG_EXPORT_NAME ${CFG_NAME})
   endif()
 
   if(NOT CFG_VERSION)
@@ -699,52 +718,28 @@ function(rs_create_unified_library_config)
     "include(\"\${CMAKE_CURRENT_LIST_DIR}/${CFG_NAME}Targets.cmake\")\n\n"
   )
 
-  # Create convenience aliases
+  # Create convenience aliases using NAMESPACE::EXPORT_NAME pattern
+  # e.g., rs::std and rs::std_static (instead of rs_std::shared and rs_std::static)
   string(APPEND CONFIG_CONTENT "# Create convenience aliases\n")
   if(CFG_BUILD_SHARED)
     string(
       APPEND CONFIG_CONTENT
-      "if(TARGET ${CFG_NAME}_shared AND NOT TARGET ${CFG_NAME}::shared)\n"
+      "if(TARGET ${CFG_NAME}_shared AND NOT TARGET ${CFG_NAMESPACE}::${CFG_EXPORT_NAME})\n"
     )
     string(
       APPEND CONFIG_CONTENT
-      "  add_library(${CFG_NAME}::shared ALIAS ${CFG_NAME}_shared)\n"
+      "  add_library(${CFG_NAMESPACE}::${CFG_EXPORT_NAME} ALIAS ${CFG_NAME}_shared)\n"
     )
     string(APPEND CONFIG_CONTENT "endif()\n")
   endif()
   if(CFG_BUILD_STATIC)
     string(
       APPEND CONFIG_CONTENT
-      "if(TARGET ${CFG_NAME}_static AND NOT TARGET ${CFG_NAME}::static)\n"
+      "if(TARGET ${CFG_NAME}_static AND NOT TARGET ${CFG_NAMESPACE}::${CFG_EXPORT_NAME}_static)\n"
     )
     string(
       APPEND CONFIG_CONTENT
-      "  add_library(${CFG_NAME}::static ALIAS ${CFG_NAME}_static)\n"
-    )
-    string(APPEND CONFIG_CONTENT "endif()\n")
-  endif()
-  string(APPEND CONFIG_CONTENT "\n")
-
-  # Create default alias (shared preferred)
-  string(APPEND CONFIG_CONTENT "# Default target (shared preferred)\n")
-  if(CFG_BUILD_SHARED)
-    string(
-      APPEND CONFIG_CONTENT
-      "if(TARGET ${CFG_NAME}_shared AND NOT TARGET ${CFG_NAME}::${CFG_NAME})\n"
-    )
-    string(
-      APPEND CONFIG_CONTENT
-      "  add_library(${CFG_NAME}::${CFG_NAME} ALIAS ${CFG_NAME}_shared)\n"
-    )
-    string(APPEND CONFIG_CONTENT "endif()\n")
-  elseif(CFG_BUILD_STATIC)
-    string(
-      APPEND CONFIG_CONTENT
-      "if(TARGET ${CFG_NAME}_static AND NOT TARGET ${CFG_NAME}::${CFG_NAME})\n"
-    )
-    string(
-      APPEND CONFIG_CONTENT
-      "  add_library(${CFG_NAME}::${CFG_NAME} ALIAS ${CFG_NAME}_static)\n"
+      "  add_library(${CFG_NAMESPACE}::${CFG_EXPORT_NAME}_static ALIAS ${CFG_NAME}_static)\n"
     )
     string(APPEND CONFIG_CONTENT "endif()\n")
   endif()
@@ -780,7 +775,7 @@ function(rs_create_unified_library_config)
   install(
     EXPORT ${CFG_NAME}Targets
     FILE ${CFG_NAME}Targets.cmake
-    NAMESPACE ${CFG_NAME}::
+    NAMESPACE ${CFG_NAMESPACE}::
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${CFG_NAME}
   )
 

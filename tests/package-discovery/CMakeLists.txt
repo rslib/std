@@ -15,11 +15,10 @@ set(RS_STD_PACKAGES
 # List of target aliases to verify for each package
 # Format: "package:target_alias"
 # The exported targets follow the naming pattern:
-#   package::shared, package::static, package::package (e.g., rs_std::shared)
+#   namespace::export_name, namespace::export_name_static (e.g., rs::std, rs::std_static)
 set(RS_STD_PACKAGE_TARGETS
-    "rs_std:rs_std::shared"
-    "rs_std:rs_std::static"
-    "rs_std:rs_std::rs_std"
+    "rs_std:rs::std"
+    "rs_std:rs::std_static"
 )
 
 message(STATUS "")
@@ -97,6 +96,7 @@ foreach(target_entry ${RS_STD_PACKAGE_TARGETS})
             COMMAND ${CMAKE_COMMAND}
                 -DTEST_TYPE=target
                 -DTARGET_ALIAS=${target_alias}
+                -DLIBRARY_NAME=${pkg_name}
                 -DCMAKE_PREFIX_PATH=${CMAKE_INSTALL_PREFIX}
                 -P ${CMAKE_CURRENT_SOURCE_DIR}/test_package_discovery.cmake
         )
