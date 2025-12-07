@@ -12,7 +12,9 @@
 #include <windows.h>  // Must be included before bcrypt.h
 #include <bcrypt.h>
 // clang-format on
+#ifdef _MSC_VER
 #pragma comment(lib, "bcrypt.lib")
+#endif
 #else
 #include <fcntl.h>
 #include <unistd.h>

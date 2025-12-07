@@ -25,6 +25,10 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install cmake ninja
 
+      - name: Install dependencies (Windows)
+        if: runner.os == 'Windows'
+        run: choco install ninja
+
       - name: Configure
         run: cmake --preset test
 
@@ -74,6 +78,10 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install cmake ninja
 
+      - name: Install dependencies (Windows)
+        if: runner.os == 'Windows'
+        run: choco install ninja
+
       - name: Configure (Unix)
         if: runner.os != 'Windows'
         run: |
@@ -89,7 +97,7 @@ jobs:
       - name: Configure (Windows)
         if: runner.os == 'Windows'
         run: |
-          cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/build/install -DCMAKE_PREFIX_PATH=${{ github.workspace }}/build/install -DRS_STD_BUILD_TESTS=ON -DRS_STD_BUILD_SHARED=ON -DRS_STD_BUILD_STATIC=ON -DRS_STD_FORCE_BUILD_SQLITE3=ON
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/build/install -DCMAKE_PREFIX_PATH=${{ github.workspace }}/build/install -DRS_STD_BUILD_TESTS=ON -DRS_STD_BUILD_SHARED=ON -DRS_STD_BUILD_STATIC=ON -DRS_STD_FORCE_BUILD_SQLITE3=ON
 
       - name: Build
         run: cmake --build build --config Release

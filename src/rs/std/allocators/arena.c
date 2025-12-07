@@ -3,7 +3,6 @@
 #include <assert.h>
 #include <rs/std/allocators/arena.h>
 #include <rs/std/error.h>
-#include <stdalign.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,9 +37,9 @@ struct rs_arena_t {
 static arena_block_t *arena_create_block(rs_allocator_t *backing, rs_size_t capacity)
 {
     // Ensure the data area starts at a properly aligned offset
-    // Align header size to max_align_t so data is maximally aligned
+    // Align header size to rs_max_align_t so data is maximally aligned
     rs_size_t header_size = sizeof(arena_block_t);
-    rs_size_t data_offset = align_forward(header_size, alignof(max_align_t));
+    rs_size_t data_offset = align_forward(header_size, RS_DEFAULT_ALIGNMENT);
     rs_size_t total_size = data_offset + capacity;
 
     arena_block_t *block = (arena_block_t *)rs_alloc(backing, total_size);

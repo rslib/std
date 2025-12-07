@@ -39,8 +39,31 @@ function(rs_add_test)
   # Create test executable
   add_executable(${TEST_NAME} ${TEST_SOURCES})
 
+  # On Windows, place test executables in the same directory as DLLs
+  # This ensures the test can find all required DLLs at runtime
+  if(WIN32)
+    set_target_properties(${TEST_NAME} PROPERTIES
+      RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+      RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/bin/Debug
+      RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/bin/Release
+      RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_BINARY_DIR}/bin/RelWithDebInfo
+      RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL ${CMAKE_BINARY_DIR}/bin/MinSizeRel
+    )
+  endif()
+
   # Link to rs_std
   target_link_libraries(${TEST_NAME} PRIVATE rs::rs_std)
+
+  # MSVC parallel builds need explicit dependencies to ensure import libraries
+  # are fully generated before linking tests
+  if(MSVC)
+    if(TARGET rs_std_shared)
+      add_dependencies(${TEST_NAME} rs_std_shared)
+    endif()
+    if(TARGET rs_std_static)
+      add_dependencies(${TEST_NAME} rs_std_static)
+    endif()
+  endif()
 
   # Link to Unity using rs_link_dependency
   rs_link_dependency(TARGET ${TEST_NAME} DEPENDENCY Unity)

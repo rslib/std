@@ -174,11 +174,11 @@ static rs_log_level_t rs_log_parse_level(const char *str)
 
 static void rs_log_get_timestamp(char *buf, size_t size)
 {
+#if defined(__unix__) || defined(__APPLE__)
     time_t now = time(NULL);
     struct tm *tm_info = localtime(&now);
 
     // Get microseconds
-#if defined(__unix__) || defined(__APPLE__)
     struct timeval tv;
     gettimeofday(&tv, NULL);
     snprintf(buf, size, "%04d-%02d-%02d %02d:%02d:%02d.%06ld", tm_info->tm_year + 1900, tm_info->tm_mon + 1,
@@ -189,6 +189,8 @@ static void rs_log_get_timestamp(char *buf, size_t size)
     snprintf(buf, size, "%04d-%02d-%02d %02d:%02d:%02d.%06d", st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute,
              st.wSecond, st.wMilliseconds * 1000);
 #else
+    time_t now = time(NULL);
+    struct tm *tm_info = localtime(&now);
     strftime(buf, size, "%Y-%m-%d %H:%M:%S.000000", tm_info);
 #endif
 }

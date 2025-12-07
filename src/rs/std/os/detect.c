@@ -65,16 +65,15 @@ const char *rs_os_detect_distro(void)
 
 #ifdef _WIN32
     detected = 1;
-    strcpy(distro_name, "windows");
+    snprintf(distro_name, sizeof(distro_name), "windows");
     return distro_name;
-#endif
-
+#else
     rs_string_view_t os_release_path = rs_sv_from_cstr("/etc/os-release");
 
     // Check if /etc/os-release exists
     if (!rs_file_exists(os_release_path)) {
         detected = 1;
-        strcpy(distro_name, "unknown");
+        snprintf(distro_name, sizeof(distro_name), "unknown");
         return distro_name;
     }
 
@@ -86,12 +85,12 @@ const char *rs_os_detect_distro(void)
     if (res != RS_OK) {
         rs_string_destroy(&content);
         detected = 1;
-        strcpy(distro_name, "unknown");
+        snprintf(distro_name, sizeof(distro_name), "unknown");
         return distro_name;
     }
 
     // Default to unknown
-    strcpy(distro_name, "unknown");
+    snprintf(distro_name, sizeof(distro_name), "unknown");
 
     // Get C string from rs_string_t
     const char *content_cstr = rs_string_cstr(&content);
@@ -99,7 +98,8 @@ const char *rs_os_detect_distro(void)
     // Parse line by line looking for ID=
     // We need to make a copy because strtok modifies the string
     char *content_copy = strdup(content_cstr);
-    char *line = strtok(content_copy, "\n");
+    char *saveptr = NULL;
+    char *line = strtok_r(content_copy, "\n", &saveptr);
 
     while (line != NULL) {
         // Trim leading whitespace
@@ -126,11 +126,12 @@ const char *rs_os_detect_distro(void)
             break;
         }
 
-        line = strtok(NULL, "\n");
+        line = strtok_r(NULL, "\n", &saveptr);
     }
 
     free(content_copy);
     rs_string_destroy(&content);
     detected = 1;
     return distro_name;
+#endif
 }

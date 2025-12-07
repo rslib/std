@@ -1,4 +1,7 @@
+#include <rs/std/allocators/allocator.h>
+#include <rs/std/fs/path.h>
 #include <rs/std/logging/logging.h>
+#include <rs/std/string/string.h>
 #include <rs/std/types.h>
 #include <string.h>
 #include <unity.h>
@@ -70,9 +73,13 @@ void test_flush(void)
 
 void test_log_to_file(void)
 {
-    const char *test_file = "/tmp/rs_test_log.txt";
+    // Use portable temp path
+    rs_allocator_t *allocator = rs_allocator_system();
+    rs_string_t test_file = rs_string_create(.allocator = allocator);
+    rs_path_get_temp(&test_file);
+    rs_path_append(&test_file, rs_sv_from_cstr("rs_test_log.txt"));
 
-    rs_result_t result = rs_log_set_output_path(test_file, false, true);
+    rs_result_t result = rs_log_set_output_path(rs_string_cstr(&test_file), false, true);
     TEST_ASSERT_EQUAL(RS_OK, result);
 
     RS_STD_LOG_INFO("Test message to file");
@@ -84,7 +91,7 @@ void test_log_to_file(void)
     rs_log_set_output_file(stderr, false);
 
     // Verify file exists by trying to open it
-    FILE *f = fopen(test_file, "r");
+    FILE *f = fopen(rs_string_cstr(&test_file), "r");
     TEST_ASSERT_NOT_NULL(f);
 
     // Read first line
@@ -94,7 +101,8 @@ void test_log_to_file(void)
     TEST_ASSERT_TRUE(strlen(line) > 0);
 
     fclose(f);
-    remove(test_file);
+    rs_path_remove(rs_sv_from_string(&test_file));
+    rs_string_destroy(&test_file);
 }
 
 // ============================================================================
@@ -103,6 +111,8 @@ void test_log_to_file(void)
 
 static void traced_function(int x, int y)
 {
+    RS_UNUSED(x);
+    RS_UNUSED(y);
     RS_TRACE_SCOPE_FMT("x=%d, y=%d", x, y);
     RS_STD_LOG_DEBUG("Inside traced function: %d + %d = %d", x, y, x + y);
 }

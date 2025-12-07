@@ -56,6 +56,23 @@ typedef unsigned int rs_file_mode_t;
 #endif
 
 // ============================================================================
+// Alignment types
+// ============================================================================
+
+/**
+ * Maximum alignment type for the platform.
+ * MSVC doesn't always provide max_align_t in older modes.
+ */
+#if defined(_MSC_VER) && !defined(__clang__)
+typedef double rs_max_align_t; // 8-byte alignment on MSVC
+#else
+typedef max_align_t rs_max_align_t;
+#endif
+
+/** Default alignment for allocations */
+#define RS_DEFAULT_ALIGNMENT (_Alignof(rs_max_align_t))
+
+// ============================================================================
 // Result type for functions
 // ============================================================================
 

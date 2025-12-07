@@ -46,18 +46,23 @@ rs_result_t rs_path_get_home(rs_string_t *out)
     rs_string_clear(out);
 
 #ifdef _WIN32
-    rs_string_view_t userprofile = rs_env_get_view("USERPROFILE");
-    if (!rs_sv_is_empty(userprofile)) {
-        return rs_string_push_buf(out, rs_sv_data(userprofile), rs_sv_len(userprofile));
+    // Try USERPROFILE first
+    if (rs_env_get(out, "USERPROFILE") == RS_OK && rs_string_len(out) > 0) {
+        return RS_OK;
     }
 
-    rs_string_view_t homedrive = rs_env_get_view("HOMEDRIVE");
-    rs_string_view_t homepath = rs_env_get_view("HOMEPATH");
-    if (!rs_sv_is_empty(homedrive) && !rs_sv_is_empty(homepath)) {
-        RS_TRY(rs_string_push_buf(out, rs_sv_data(homedrive), rs_sv_len(homedrive)));
-        return rs_string_push_buf(out, rs_sv_data(homepath), rs_sv_len(homepath));
+    // Try HOMEDRIVE + HOMEPATH
+    rs_string_t homepath = rs_string_create(.allocator = rs_string_get_allocator(out));
+    if (rs_env_get(out, "HOMEDRIVE") == RS_OK && rs_string_len(out) > 0 && rs_env_get(&homepath, "HOMEPATH") == RS_OK &&
+        rs_string_len(&homepath) > 0) {
+        rs_result_t ret = rs_string_push_string(out, &homepath);
+        rs_string_destroy(&homepath);
+        return ret;
     }
+    rs_string_destroy(&homepath);
 
+    // Fall back to SHGetFolderPath
+    rs_string_clear(out);
     char path[MAX_PATH];
     if (SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_PROFILE, NULL, 0, path))) {
         return rs_string_push_cstr(out, path);
@@ -87,19 +92,23 @@ rs_result_t rs_path_get_temp(rs_string_t *out)
 
 #ifdef _WIN32
     // Windows: Try TEMP, TMP, then GetTempPath
-    rs_string_view_t temp = rs_env_get_view("TEMP");
-    if (rs_sv_is_empty(temp)) {
-        temp = rs_env_get_view("TMP");
+    if (rs_env_get(out, "TEMP") == RS_OK && rs_string_len(out) > 0) {
+        return RS_OK;
     }
 
-    if (!rs_sv_is_empty(temp)) {
-        return rs_string_push_buf(out, rs_sv_data(temp), rs_sv_len(temp));
+    if (rs_env_get(out, "TMP") == RS_OK && rs_string_len(out) > 0) {
+        return RS_OK;
     }
 
     // Fall back to GetTempPath
+    rs_string_clear(out);
     char temp_buf[MAX_PATH];
     DWORD len = GetTempPathA(MAX_PATH, temp_buf);
     if (len > 0 && len < MAX_PATH) {
+        // Remove trailing backslash if present
+        if (len > 0 && temp_buf[len - 1] == '\\') {
+            temp_buf[len - 1] = '\0';
+        }
         return rs_string_push_cstr(out, temp_buf);
     }
 
@@ -159,8 +168,7 @@ static rs_result_t expand_tilde_to_string(rs_string_t *out, rs_string_view_t pat
 
 #ifdef _WIN32
     char user_path[MAX_PATH];
-    DWORD size = MAX_PATH;
-    snprintf(user_path, MAX_PATH, "C:\\Users\\%s", username);
+    snprintf(user_path, sizeof(user_path), "C:\\Users\\%.240s", username);
     DWORD attrs = GetFileAttributesA(user_path);
     if (attrs == INVALID_FILE_ATTRIBUTES || !(attrs & FILE_ATTRIBUTE_DIRECTORY)) {
         return RS_ERROR_RET(RS_ERR_NOTFOUND, "User '%s' not found", username);
@@ -216,6 +224,17 @@ rs_result_t rs_path_dirname(rs_string_t *out, rs_string_view_t path)
         return rs_string_push_cstr(out, ".");
     }
 
+#ifdef _WIN32
+    // Handle Windows drive letter prefix
+    if (path_len >= 2 && ((path_str[0] >= 'A' && path_str[0] <= 'Z') || (path_str[0] >= 'a' && path_str[0] <= 'z')) &&
+        path_str[1] == ':') {
+        // If path is just "C:" or "C:\", return as-is
+        if (path_len == 2 || (path_len == 3 && RS_IS_PATH_SEP(path_str[2]))) {
+            return rs_string_push_buf(out, path_str, path_len);
+        }
+    }
+#endif
+
     // Find last separator
     const char *last_sep = NULL;
     for (rs_size_t i = 0; i < path_len; i++) {
@@ -226,12 +245,29 @@ rs_result_t rs_path_dirname(rs_string_t *out, rs_string_view_t path)
 
     // No separator found
     if (!last_sep) {
+#ifdef _WIN32
+        // Return drive letter if present
+        if (path_len >= 2 && path_str[1] == ':') {
+            return rs_string_push_buf(out, path_str, 2);
+        }
+#endif
         return rs_string_push_cstr(out, ".");
     }
 
-    // Root directory
+#ifdef _WIN32
+    // Check if separator is right after drive letter (e.g., "C:\foo" -> "C:\")
+    if (path_len >= 3 && path_str[1] == ':' && last_sep == path_str + 2) {
+        return rs_string_push_buf(out, path_str, 3);
+    }
+#endif
+
+    // Root directory (Unix)
     if (last_sep == path_str) {
+#ifdef _WIN32
+        return rs_string_push_cstr(out, "\\");
+#else
         return rs_string_push_cstr(out, "/");
+#endif
     }
 
     // Copy up to (but not including) separator
@@ -321,15 +357,35 @@ rs_result_t rs_path_normalize(rs_string_t *path)
     // Create temporary result string
     rs_string_t result = rs_string_create(.allocator = rs_string_get_allocator(path));
 
-    if (is_absolute) {
-        rs_string_push_char(&result, '/');
-    }
-
     // Split by separator and process each component
     const char *p = path_str;
-    if (is_absolute && RS_IS_PATH_SEP(*p)) {
-        p++; // Skip leading separator
+
+#ifdef _WIN32
+    // Handle Windows drive letter prefix (e.g., "C:")
+    if (is_absolute && ((path_str[0] >= 'A' && path_str[0] <= 'Z') || (path_str[0] >= 'a' && path_str[0] <= 'z')) &&
+        path_str[1] == ':') {
+        rs_string_push_char(&result, path_str[0]);
+        rs_string_push_char(&result, ':');
+        p = path_str + 2;
+        // Add separator after drive letter
+        if (RS_IS_PATH_SEP(*p)) {
+            rs_string_push_char(&result, RS_PATH_SEP);
+            p++;
+        }
+    } else if (is_absolute) {
+        rs_string_push_char(&result, RS_PATH_SEP);
+        if (RS_IS_PATH_SEP(*p)) {
+            p++;
+        }
     }
+#else
+    if (is_absolute) {
+        rs_string_push_char(&result, RS_PATH_SEP);
+        if (RS_IS_PATH_SEP(*p)) {
+            p++;
+        }
+    }
+#endif
 
     while (*p) {
         // Skip multiple separators
@@ -356,13 +412,23 @@ rs_result_t rs_path_normalize(rs_string_t *path)
             char *data = rs_string_data_mut(&result);
             rs_size_t len = rs_string_len(&result);
 
-            if (len > 0 && data[len - 1] == '/') {
+            if (len > 0 && RS_IS_PATH_SEP(data[len - 1])) {
                 len--;
             }
 
-            // Find last separator
+            // Find last separator (but don't go past drive letter on Windows)
+            rs_size_t min_pos = 0;
+#ifdef _WIN32
+            // Don't remove drive letter
+            if (len >= 2 && data[1] == ':') {
+                min_pos = 2;
+                if (len > 2 && RS_IS_PATH_SEP(data[2])) {
+                    min_pos = 3;
+                }
+            }
+#endif
             rs_size_t i = len;
-            while (i > 0 && data[i - 1] != '/') {
+            while (i > min_pos && !RS_IS_PATH_SEP(data[i - 1])) {
                 i--;
             }
 
@@ -370,8 +436,8 @@ rs_result_t rs_path_normalize(rs_string_t *path)
         } else {
             // Add component
             rs_size_t result_len = rs_string_len(&result);
-            if (result_len > 0 && rs_string_cstr(&result)[result_len - 1] != '/') {
-                rs_string_push_char(&result, '/');
+            if (result_len > 0 && !RS_IS_PATH_SEP(rs_string_cstr(&result)[result_len - 1])) {
+                rs_string_push_char(&result, RS_PATH_SEP);
             }
             rs_string_push_buf(&result, comp_start, comp_len);
         }
@@ -381,7 +447,11 @@ rs_result_t rs_path_normalize(rs_string_t *path)
     if (rs_string_len(&result) == 0) {
         rs_string_destroy(&result);
         rs_string_clear(path);
+#ifdef _WIN32
+        return rs_string_push_cstr(path, is_absolute ? "\\" : ".");
+#else
         return rs_string_push_cstr(path, is_absolute ? "/" : ".");
+#endif
     }
 
     // Replace path with result

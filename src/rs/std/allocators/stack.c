@@ -70,7 +70,6 @@ static void *stack_alloc(rs_allocator_t *allocator, rs_size_t size, rs_size_t al
     if (stack->offset + total_size > stack->buf_len) {
         RS_ERROR(RS_ERR_NOMEM, "Stack allocator out of memory: need %zu bytes, only %zu available", total_size,
                  stack->buf_len - stack->offset);
-        assert(0 && "Stack allocator out of memory");
         return NULL;
     }
 

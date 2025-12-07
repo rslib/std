@@ -62,6 +62,19 @@ typedef struct {
     rs_size_t count;
 } rs_defer_scope_t;
 
+// Helper to cast function pointers without -Wcast-function-type warnings
+// This is safe for defer functions where return value is ignored
+#if defined(__GNUC__) && !defined(__clang__)
+#define RS_DEFER_FN_CAST(fn)                                                                                           \
+    (__extension__({                                                                                                   \
+        _Pragma("GCC diagnostic push") _Pragma("GCC diagnostic ignored \"-Wcast-function-type\"") rs_defer_fn _fn =    \
+            (rs_defer_fn)(fn);                                                                                         \
+        _Pragma("GCC diagnostic pop") _fn;                                                                             \
+    }))
+#else
+#define RS_DEFER_FN_CAST(fn) ((rs_defer_fn)(fn))
+#endif
+
 // ============================================================================
 // Core API (Portable - Works Everywhere)
 // ============================================================================
@@ -163,7 +176,7 @@ RS_STD_API void rs_defer_scope_cleanup(rs_defer_scope_t *scope);
  * Add a defer action in the current scope block.
  * Must be used within RS_DEFER_SCOPE_BEGIN/END.
  */
-#define RS_DEFER_ADD(fn, data) rs_defer_scope_add(&_rs_defer_scope, (rs_defer_fn)(fn), (void *)(data))
+#define RS_DEFER_ADD(fn, data) rs_defer_scope_add(&_rs_defer_scope, RS_DEFER_FN_CAST(fn), (void *)(data))
 
 #else // !RS_HAS_CLEANUP_ATTRIBUTE
 
@@ -191,7 +204,7 @@ RS_STD_API void rs_defer_scope_cleanup(rs_defer_scope_t *scope);
  * Add a defer action in the current scope block.
  * Must be used within RS_DEFER_SCOPE_BEGIN/END.
  */
-#define RS_DEFER_ADD(fn, data) rs_defer_scope_add(&_rs_defer_scope, (rs_defer_fn)(fn), (void *)(data))
+#define RS_DEFER_ADD(fn, data) rs_defer_scope_add(&_rs_defer_scope, RS_DEFER_FN_CAST(fn), (void *)(data))
 
 #endif // RS_HAS_CLEANUP_ATTRIBUTE
 

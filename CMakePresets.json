@@ -17,6 +17,19 @@
       }
     },
     {
+      "name": "dev",
+      "displayName": "Development",
+      "inherits": "default",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build/install",
+        "RS_STD_BUILD_TESTS": "ON",
+        "RS_STD_BUILD_SHARED": "ON",
+        "RS_STD_BUILD_STATIC": "ON"
+      }
+    },
+    {
       "name": "debug",
       "displayName": "Debug",
       "inherits": "default",

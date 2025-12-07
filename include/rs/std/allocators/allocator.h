@@ -47,12 +47,12 @@ struct rs_allocator_t {
 };
 
 // Helper macros
-#define rs_alloc(a, size) (a)->vtable->alloc((a), (size), _Alignof(max_align_t))
+#define rs_alloc(a, size) (a)->vtable->alloc((a), (size), RS_DEFAULT_ALIGNMENT)
 
 #define rs_alloc_aligned(a, size, align) (a)->vtable->alloc((a), (size), (align))
 
 #define rs_realloc(a, ptr, old_size, new_size)                                                                         \
-    (a)->vtable->realloc((a), (ptr), (old_size), (new_size), _Alignof(max_align_t))
+    (a)->vtable->realloc((a), (ptr), (old_size), (new_size), RS_DEFAULT_ALIGNMENT)
 
 #define rs_free(a, ptr, size) (a)->vtable->free((a), (ptr), (size))
 

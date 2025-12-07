@@ -2,6 +2,7 @@
 #include <rs/std/error.h>
 #include <rs/std/fs/path.h>
 #include <rs/std/logging/logging.h>
+#include <rs/std/os/env.h>
 #include <rs/std/string/string.h>
 #include <rs/std/string/string_view.h>
 #include <stdio.h>
@@ -65,22 +66,28 @@ void test_path_expand_env_var(void)
 {
     rs_string_t path = rs_string_create(.allocator = allocator);
 
-    // Set a test environment variable
-    setenv("TEST_VAR", "/test/path", 1);
+    // Set a test environment variable (use platform-appropriate path)
+#ifdef _WIN32
+    rs_env_set("TEST_VAR", "C:\\test\\path");
+    const char *expected_prefix = "C:\\test\\path";
+#else
+    rs_env_set("TEST_VAR", "/test/path");
+    const char *expected_prefix = "/test/path";
+#endif
 
     // Test "$TEST_VAR"
     rs_result_t result = rs_path_expand(&path, rs_sv_from_cstr("$TEST_VAR/file"));
     TEST_ASSERT_EQUAL(RS_OK, result);
-    TEST_ASSERT_TRUE(rs_string_starts_with(&path, "/test/path"));
+    TEST_ASSERT_TRUE(rs_string_starts_with(&path, expected_prefix));
     TEST_ASSERT_TRUE(rs_string_ends_with(&path, "file"));
 
     // Test "${TEST_VAR}"
     result = rs_path_expand(&path, rs_sv_from_cstr("${TEST_VAR}/other"));
     TEST_ASSERT_EQUAL(RS_OK, result);
-    TEST_ASSERT_TRUE(rs_string_starts_with(&path, "/test/path"));
+    TEST_ASSERT_TRUE(rs_string_starts_with(&path, expected_prefix));
     TEST_ASSERT_TRUE(rs_string_ends_with(&path, "other"));
 
-    unsetenv("TEST_VAR");
+    rs_env_unset("TEST_VAR");
     rs_string_destroy(&path);
 }
 
@@ -88,6 +95,23 @@ void test_path_dirname(void)
 {
     rs_string_t result = rs_string_create(.allocator = allocator);
 
+#ifdef _WIN32
+    // Test "C:\foo\bar\baz" -> "C:\foo\bar"
+    rs_path_dirname(&result, rs_sv_from_cstr("C:\\foo\\bar\\baz"));
+    TEST_ASSERT_TRUE(rs_string_eq_cstr(&result, "C:\\foo\\bar"));
+
+    // Test "C:\foo" -> "C:\"
+    rs_path_dirname(&result, rs_sv_from_cstr("C:\\foo"));
+    TEST_ASSERT_TRUE(rs_string_eq_cstr(&result, "C:\\"));
+
+    // Test "foo\bar" -> "foo"
+    rs_path_dirname(&result, rs_sv_from_cstr("foo\\bar"));
+    TEST_ASSERT_TRUE(rs_string_eq_cstr(&result, "foo"));
+
+    // Test "foo" -> "."
+    rs_path_dirname(&result, rs_sv_from_cstr("foo"));
+    TEST_ASSERT_TRUE(rs_string_eq_cstr(&result, "."));
+#else
     // Test "/foo/bar/baz" -> "/foo/bar"
     rs_path_dirname(&result, rs_sv_from_cstr("/foo/bar/baz"));
     TEST_ASSERT_TRUE(rs_string_eq_cstr(&result, "/foo/bar"));
@@ -103,6 +127,7 @@ void test_path_dirname(void)
     // Test "foo" -> "."
     rs_path_dirname(&result, rs_sv_from_cstr("foo"));
     TEST_ASSERT_TRUE(rs_string_eq_cstr(&result, "."));
+#endif
 
     rs_string_destroy(&result);
 }
@@ -137,8 +162,28 @@ void test_path_basename(void)
 void test_path_append(void)
 {
     rs_string_t path = rs_string_create(.allocator = allocator);
+    char sep = rs_path_separator();
 
-    // Test basic append
+#ifdef _WIN32
+    // Test basic append on Windows
+    rs_string_push_cstr(&path, "C:\\foo");
+    rs_path_append(&path, rs_sv_from_cstr("bar"));
+    TEST_ASSERT_TRUE(rs_string_eq_cstr(&path, "C:\\foo\\bar"));
+
+    // Test append with trailing separator
+    rs_string_clear(&path);
+    rs_string_push_cstr(&path, "C:\\foo\\");
+    rs_path_append(&path, rs_sv_from_cstr("bar"));
+    TEST_ASSERT_TRUE(rs_string_eq_cstr(&path, "C:\\foo\\bar"));
+
+    // Test multiple appends
+    rs_string_clear(&path);
+    rs_string_push_cstr(&path, "C:\\usr");
+    rs_path_append(&path, rs_sv_from_cstr("local"));
+    rs_path_append(&path, rs_sv_from_cstr("bin"));
+    TEST_ASSERT_TRUE(rs_string_eq_cstr(&path, "C:\\usr\\local\\bin"));
+#else
+    // Test basic append on Unix
     rs_string_push_cstr(&path, "/foo");
     rs_path_append(&path, rs_sv_from_cstr("bar"));
     TEST_ASSERT_TRUE(rs_string_eq_cstr(&path, "/foo/bar"));
@@ -149,11 +194,11 @@ void test_path_append(void)
     rs_path_append(&path, rs_sv_from_cstr("bar"));
     TEST_ASSERT_TRUE(rs_string_eq_cstr(&path, "/foo/bar"));
 
-    // Test append with leading slash in component
+    // Test append with leading slash in component (absolute replaces)
     rs_string_clear(&path);
     rs_string_push_cstr(&path, "/foo");
     rs_path_append(&path, rs_sv_from_cstr("/bar"));
-    TEST_ASSERT_TRUE(rs_string_eq_cstr(&path, "/bar")); // Absolute component replaces
+    TEST_ASSERT_TRUE(rs_string_eq_cstr(&path, "/bar"));
 
     // Test multiple appends
     rs_string_clear(&path);
@@ -161,7 +206,9 @@ void test_path_append(void)
     rs_path_append(&path, rs_sv_from_cstr("local"));
     rs_path_append(&path, rs_sv_from_cstr("bin"));
     TEST_ASSERT_TRUE(rs_string_eq_cstr(&path, "/usr/local/bin"));
+#endif
 
+    (void)sep; // suppress unused warning
     rs_string_destroy(&path);
 }
 
@@ -169,6 +216,36 @@ void test_path_normalize(void)
 {
     rs_string_t path = rs_string_create(.allocator = allocator);
 
+#ifdef _WIN32
+    // Test removing double slashes
+    rs_string_push_cstr(&path, "C:\\foo\\\\bar");
+    rs_path_normalize(&path);
+    TEST_ASSERT_TRUE(rs_string_eq_cstr(&path, "C:\\foo\\bar"));
+
+    // Test removing "."
+    rs_string_clear(&path);
+    rs_string_push_cstr(&path, "C:\\foo\\.\\bar");
+    rs_path_normalize(&path);
+    TEST_ASSERT_TRUE(rs_string_eq_cstr(&path, "C:\\foo\\bar"));
+
+    // Test resolving ".."
+    rs_string_clear(&path);
+    rs_string_push_cstr(&path, "C:\\foo\\bar\\..\\baz");
+    rs_path_normalize(&path);
+    TEST_ASSERT_TRUE(rs_string_eq_cstr(&path, "C:\\foo\\baz"));
+
+    // Test relative path with ".."
+    rs_string_clear(&path);
+    rs_string_push_cstr(&path, "foo\\..\\bar");
+    rs_path_normalize(&path);
+    TEST_ASSERT_TRUE(rs_string_eq_cstr(&path, "bar"));
+
+    // Test complex path
+    rs_string_clear(&path);
+    rs_string_push_cstr(&path, "C:\\foo\\.\\bar\\..\\baz\\\\qux");
+    rs_path_normalize(&path);
+    TEST_ASSERT_TRUE(rs_string_eq_cstr(&path, "C:\\foo\\baz\\qux"));
+#else
     // Test removing double slashes
     rs_string_push_cstr(&path, "/foo//bar");
     rs_path_normalize(&path);
@@ -197,6 +274,7 @@ void test_path_normalize(void)
     rs_string_push_cstr(&path, "/foo/./bar/../baz//qux");
     rs_path_normalize(&path);
     TEST_ASSERT_TRUE(rs_string_eq_cstr(&path, "/foo/baz/qux"));
+#endif
 
     rs_string_destroy(&path);
 }
@@ -207,6 +285,23 @@ void test_path_normalize(void)
 
 void test_path_is_absolute(void)
 {
+#ifdef _WIN32
+    // Windows absolute paths
+    TEST_ASSERT_TRUE(rs_path_is_absolute(rs_sv_from_cstr("C:\\")));
+    TEST_ASSERT_TRUE(rs_path_is_absolute(rs_sv_from_cstr("C:\\foo")));
+    TEST_ASSERT_TRUE(rs_path_is_absolute(rs_sv_from_cstr("C:\\foo\\bar")));
+    TEST_ASSERT_TRUE(rs_path_is_absolute(rs_sv_from_cstr("D:")));
+    // UNC paths
+    TEST_ASSERT_TRUE(rs_path_is_absolute(rs_sv_from_cstr("\\\\server\\share")));
+
+    // Relative paths on Windows
+    TEST_ASSERT_FALSE(rs_path_is_absolute(rs_sv_from_cstr("foo")));
+    TEST_ASSERT_FALSE(rs_path_is_absolute(rs_sv_from_cstr("foo\\bar")));
+    TEST_ASSERT_FALSE(rs_path_is_absolute(rs_sv_from_cstr(".\\foo")));
+    TEST_ASSERT_FALSE(rs_path_is_absolute(rs_sv_from_cstr("..\\foo")));
+    // Note: /foo is relative on Windows (no drive letter)
+    TEST_ASSERT_FALSE(rs_path_is_absolute(rs_sv_from_cstr("/foo")));
+#else
     // Unix absolute paths
     TEST_ASSERT_TRUE(rs_path_is_absolute(rs_sv_from_cstr("/")));
     TEST_ASSERT_TRUE(rs_path_is_absolute(rs_sv_from_cstr("/foo")));
@@ -217,6 +312,7 @@ void test_path_is_absolute(void)
     TEST_ASSERT_FALSE(rs_path_is_absolute(rs_sv_from_cstr("foo/bar")));
     TEST_ASSERT_FALSE(rs_path_is_absolute(rs_sv_from_cstr("./foo")));
     TEST_ASSERT_FALSE(rs_path_is_absolute(rs_sv_from_cstr("../foo")));
+#endif
 
     // Empty path
     TEST_ASSERT_FALSE(rs_path_is_absolute(rs_sv_from_cstr("")));
@@ -288,11 +384,19 @@ void test_path_list_separator(void)
 
 void test_path_exists(void)
 {
+#ifdef _WIN32
+    // Test with C: drive (should always exist)
+    TEST_ASSERT_EQUAL(1, rs_path_exists(rs_sv_from_cstr("C:\\")));
+
+    // Test with likely non-existent path
+    TEST_ASSERT_EQUAL(0, rs_path_exists(rs_sv_from_cstr("C:\\nonexistent_path_12345")));
+#else
     // Test with root directory (should always exist)
     TEST_ASSERT_EQUAL(1, rs_path_exists(rs_sv_from_cstr("/")));
 
     // Test with likely non-existent path
     TEST_ASSERT_EQUAL(0, rs_path_exists(rs_sv_from_cstr("/nonexistent_path_12345")));
+#endif
 
     // Test with current directory
     TEST_ASSERT_EQUAL(1, rs_path_exists(rs_sv_from_cstr(".")));
@@ -302,6 +406,31 @@ void test_path_relative(void)
 {
     rs_string_t result = rs_string_create(.allocator = allocator);
 
+#ifdef _WIN32
+    // Test: from="C:\foo\bar", to="C:\foo\baz" -> "..\baz"
+    rs_path_relative(&result, rs_sv_from_cstr("C:\\foo\\bar"), rs_sv_from_cstr("C:\\foo\\baz"));
+    TEST_ASSERT_TRUE(rs_string_eq_cstr(&result, "..\\baz"));
+
+    // Test: from="C:\foo\bar", to="C:\foo\bar\baz" -> "baz"
+    rs_path_relative(&result, rs_sv_from_cstr("C:\\foo\\bar"), rs_sv_from_cstr("C:\\foo\\bar\\baz"));
+    TEST_ASSERT_TRUE(rs_string_eq_cstr(&result, "baz"));
+
+    // Test: from="C:\foo", to="C:\bar" -> "..\bar"
+    rs_path_relative(&result, rs_sv_from_cstr("C:\\foo"), rs_sv_from_cstr("C:\\bar"));
+    TEST_ASSERT_TRUE(rs_string_eq_cstr(&result, "..\\bar"));
+
+    // Test: same path -> "."
+    rs_path_relative(&result, rs_sv_from_cstr("C:\\foo\\bar"), rs_sv_from_cstr("C:\\foo\\bar"));
+    TEST_ASSERT_TRUE(rs_string_eq_cstr(&result, "."));
+
+    // Test: nested paths
+    rs_path_relative(&result, rs_sv_from_cstr("C:\\a\\b\\c\\d"), rs_sv_from_cstr("C:\\a\\b\\e\\f"));
+    TEST_ASSERT_TRUE(rs_string_eq_cstr(&result, "..\\..\\e\\f"));
+
+    // Test: relative paths
+    rs_path_relative(&result, rs_sv_from_cstr("foo\\bar"), rs_sv_from_cstr("foo\\baz"));
+    TEST_ASSERT_TRUE(rs_string_eq_cstr(&result, "..\\baz"));
+#else
     // Test: from="/foo/bar", to="/foo/baz" -> "../baz"
     rs_path_relative(&result, rs_sv_from_cstr("/foo/bar"), rs_sv_from_cstr("/foo/baz"));
     TEST_ASSERT_TRUE(rs_string_eq_cstr(&result, "../baz"));
@@ -325,6 +454,7 @@ void test_path_relative(void)
     // Test: relative paths
     rs_path_relative(&result, rs_sv_from_cstr("foo/bar"), rs_sv_from_cstr("foo/baz"));
     TEST_ASSERT_TRUE(rs_string_eq_cstr(&result, "../baz"));
+#endif
 
     rs_string_destroy(&result);
 }
@@ -333,6 +463,19 @@ void test_path_proximate(void)
 {
     rs_string_t result = rs_string_create(.allocator = allocator);
 
+#ifdef _WIN32
+    // Test: short relative path preferred
+    rs_path_proximate(&result, rs_sv_from_cstr("C:\\foo\\bar"), rs_sv_from_cstr("C:\\foo\\baz"));
+    TEST_ASSERT_TRUE(rs_string_eq_cstr(&result, "..\\baz"));
+
+    // Test: short absolute path preferred (when relative would be longer)
+    rs_path_proximate(&result, rs_sv_from_cstr("C:\\a\\b\\c\\d\\e\\f"), rs_sv_from_cstr("C:\\x"));
+    TEST_ASSERT_TRUE(rs_string_eq_cstr(&result, "C:\\x"));
+
+    // Test: equal length - prefer relative (both "..\bar" and "C:\bar" are 6 chars)
+    rs_path_proximate(&result, rs_sv_from_cstr("C:\\foo"), rs_sv_from_cstr("C:\\bar"));
+    TEST_ASSERT_TRUE(rs_string_eq_cstr(&result, "..\\bar"));
+#else
     // Test: short relative path preferred
     rs_path_proximate(&result, rs_sv_from_cstr("/foo/bar"), rs_sv_from_cstr("/foo/baz"));
     TEST_ASSERT_TRUE(rs_string_eq_cstr(&result, "../baz"));
@@ -345,6 +488,7 @@ void test_path_proximate(void)
     rs_path_proximate(&result, rs_sv_from_cstr("/foo"), rs_sv_from_cstr("/bar"));
     // Both "../bar" (6 chars) and "/bar" (4 chars) - absolute is shorter
     TEST_ASSERT_TRUE(rs_string_eq_cstr(&result, "/bar"));
+#endif
 
     rs_string_destroy(&result);
 }
@@ -379,14 +523,22 @@ void test_path_is_file(void)
 
 void test_path_is_dir(void)
 {
+#ifdef _WIN32
+    // C: drive root should be a directory
+    TEST_ASSERT_NOT_EQUAL(0, rs_path_is_dir(rs_sv_from_cstr("C:\\")));
+
+    // Non-existent path should not be a directory
+    TEST_ASSERT_EQUAL(0, rs_path_is_dir(rs_sv_from_cstr("C:\\nonexistent_dir_12345")));
+#else
     // Root directory should be a directory
     TEST_ASSERT_NOT_EQUAL(0, rs_path_is_dir(rs_sv_from_cstr("/")));
 
-    // Current directory should be a directory
-    TEST_ASSERT_NOT_EQUAL(0, rs_path_is_dir(rs_sv_from_cstr(".")));
-
     // Non-existent path should not be a directory
     TEST_ASSERT_EQUAL(0, rs_path_is_dir(rs_sv_from_cstr("/nonexistent_dir_12345")));
+#endif
+
+    // Current directory should be a directory
+    TEST_ASSERT_NOT_EQUAL(0, rs_path_is_dir(rs_sv_from_cstr(".")));
 }
 
 void test_path_remove_file(void)

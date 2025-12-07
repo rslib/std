@@ -201,18 +201,33 @@ rs_ssize_t rs_io_reader_read_at(rs_io_reader_t *reader, void *buf, rs_size_t cou
     }
 
 #ifdef _WIN32
-    OVERLAPPED overlapped = {0};
-    overlapped.Offset = (DWORD)(offset & 0xFFFFFFFF);
-    overlapped.OffsetHigh = (DWORD)(offset >> 32);
+    // For synchronous handles, we must manually seek and restore position
+    // Save current position
+    LARGE_INTEGER zero = {0};
+    LARGE_INTEGER saved_pos;
+    if (!SetFilePointerEx(reader->handle, zero, &saved_pos, FILE_CURRENT)) {
+        RS_ERROR(RS_ERR_IO, "Failed to get current file position");
+        return -1;
+    }
 
+    // Seek to offset
+    LARGE_INTEGER seek_pos;
+    seek_pos.QuadPart = (LONGLONG)offset;
+    if (!SetFilePointerEx(reader->handle, seek_pos, NULL, FILE_BEGIN)) {
+        RS_ERROR(RS_ERR_IO, "Failed to seek to offset");
+        return -1;
+    }
+
+    // Read
     DWORD bytes_read;
-    if (!ReadFile(reader->handle, buf, (DWORD)count, &bytes_read, &overlapped)) {
-        DWORD err = GetLastError();
-        if (err != ERROR_HANDLE_EOF) {
-            RS_ERROR(RS_ERR_IO, "ReadFile with OVERLAPPED failed");
-            return -1;
-        }
-        return 0; // EOF
+    BOOL success = ReadFile(reader->handle, buf, (DWORD)count, &bytes_read, NULL);
+
+    // Restore position
+    SetFilePointerEx(reader->handle, saved_pos, NULL, FILE_BEGIN);
+
+    if (!success) {
+        RS_ERROR(RS_ERR_IO, "ReadFile failed");
+        return -1;
     }
     return (rs_ssize_t)bytes_read;
 #else

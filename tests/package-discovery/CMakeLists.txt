@@ -49,27 +49,30 @@ foreach(pkg ${RS_STD_PACKAGES})
     )
     set_tests_properties("PackageDiscovery_${pkg}_cmake" PROPERTIES FIXTURES_REQUIRED PackagesInstalled)
 
-    # Test pkg-config discovery (shared)
-    add_test(
-        NAME "PackageDiscovery_${pkg}_pkgconfig"
-        COMMAND ${CMAKE_COMMAND}
-            -DTEST_TYPE=pkgconfig
-            -DLIBRARY_NAME=${pkg}
-            -DPKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig
-            -P ${CMAKE_CURRENT_SOURCE_DIR}/test_package_discovery.cmake
-    )
-    set_tests_properties("PackageDiscovery_${pkg}_pkgconfig" PROPERTIES FIXTURES_REQUIRED PackagesInstalled)
+    # Test pkg-config discovery (skip on Windows - no pkg-config)
+    if(NOT WIN32)
+        # Test pkg-config discovery (shared)
+        add_test(
+            NAME "PackageDiscovery_${pkg}_pkgconfig"
+            COMMAND ${CMAKE_COMMAND}
+                -DTEST_TYPE=pkgconfig
+                -DLIBRARY_NAME=${pkg}
+                -DPKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/test_package_discovery.cmake
+        )
+        set_tests_properties("PackageDiscovery_${pkg}_pkgconfig" PROPERTIES FIXTURES_REQUIRED PackagesInstalled)
 
-    # Test pkg-config discovery (static)
-    add_test(
-        NAME "PackageDiscovery_${pkg}_static_pkgconfig"
-        COMMAND ${CMAKE_COMMAND}
-            -DTEST_TYPE=pkgconfig
-            -DLIBRARY_NAME=${pkg}_static
-            -DPKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig
-            -P ${CMAKE_CURRENT_SOURCE_DIR}/test_package_discovery.cmake
-    )
-    set_tests_properties("PackageDiscovery_${pkg}_static_pkgconfig" PROPERTIES FIXTURES_REQUIRED PackagesInstalled)
+        # Test pkg-config discovery (static)
+        add_test(
+            NAME "PackageDiscovery_${pkg}_static_pkgconfig"
+            COMMAND ${CMAKE_COMMAND}
+                -DTEST_TYPE=pkgconfig
+                -DLIBRARY_NAME=${pkg}_static
+                -DPKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/test_package_discovery.cmake
+        )
+        set_tests_properties("PackageDiscovery_${pkg}_static_pkgconfig" PROPERTIES FIXTURES_REQUIRED PackagesInstalled)
+    endif()
 endforeach()
 
 # Create tests for target aliases

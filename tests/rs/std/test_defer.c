@@ -238,7 +238,8 @@ void test_defer_file_cleanup(void)
     FILE *f = fopen("test_defer_temp.txt", "r");
     TEST_ASSERT_NOT_NULL(f);
     char buf[16];
-    fgets(buf, sizeof(buf), f);
+    char *result = fgets(buf, sizeof(buf), f);
+    TEST_ASSERT_NOT_NULL(result);
     fclose(f);
     remove("test_defer_temp.txt");
 

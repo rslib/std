@@ -156,10 +156,19 @@ rs_result_t rs_env_expand(rs_string_t *out, rs_string_view_t input)
                 memcpy(var_name, var_start, var_len);
                 var_name[var_len] = '\0';
 
+#ifdef _WIN32
+                // On Windows, use GetEnvironmentVariable to match rs_env_set
+                char value_buf[4096];
+                DWORD result = GetEnvironmentVariableA(var_name, value_buf, sizeof(value_buf));
+                if (result > 0 && result < sizeof(value_buf)) {
+                    RS_TRY(rs_string_push_cstr(out, value_buf));
+                }
+#else
                 const char *var_value = getenv(var_name);
                 if (var_value) {
                     RS_TRY(rs_string_push_cstr(out, var_value));
                 }
+#endif
             }
         } else {
             RS_TRY(rs_string_push_char(out, *p));
@@ -202,6 +211,7 @@ void rs_env_foreach(rs_env_foreach_fn callback, void *userdata)
 #ifdef _WIN32
     // Windows: GetEnvironmentStrings returns a block of null-terminated strings
     // Format: "NAME=VALUE\0NAME2=VALUE2\0\0"
+    // Note: The returned block is read-only, so we must copy names before use
     LPCH env = GetEnvironmentStringsA();
     if (!env) {
         return;
@@ -209,14 +219,23 @@ void rs_env_foreach(rs_env_foreach_fn callback, void *userdata)
 
     LPCH current = env;
     while (*current) {
+        // Skip environment variables that start with '=' (Windows internal vars)
+        if (*current == '=') {
+            current += strlen(current) + 1;
+            continue;
+        }
+
         // Find the '=' separator
-        char *eq = strchr(current, '=');
+        const char *eq = strchr(current, '=');
         if (eq) {
-            *eq = '\0'; // Temporarily null-terminate the name
-            const char *name = current;
-            const char *value = eq + 1;
-            callback(name, value, userdata);
-            *eq = '='; // Restore the '='
+            size_t name_len = eq - current;
+            char name[256];
+            if (name_len < sizeof(name)) {
+                memcpy(name, current, name_len);
+                name[name_len] = '\0';
+                const char *value = eq + 1;
+                callback(name, value, userdata);
+            }
         }
         // Move to next string
         current += strlen(current) + 1;
@@ -267,7 +286,13 @@ rs_result_t rs_env_get_all(rs_array_t *out_pairs, rs_allocator_t *allocator)
 
     LPCH current = env;
     while (*current) {
-        char *eq = strchr(current, '=');
+        // Skip environment variables that start with '=' (Windows internal vars)
+        if (*current == '=') {
+            current += strlen(current) + 1;
+            continue;
+        }
+
+        const char *eq = strchr(current, '=');
         if (eq) {
             rs_env_pair_t pair;
             pair.name = rs_string_create(.allocator = allocator);

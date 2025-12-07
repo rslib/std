@@ -58,6 +58,39 @@ rs_result_t rs_dir_create(rs_string_view_t path, rs_file_mode_t mode)
     return RS_OK;
 }
 
+static int is_root_path(rs_string_view_t path)
+{
+    const char *p = rs_sv_data(path);
+    rs_size_t len = rs_sv_len(path);
+
+    if (len == 0) {
+        return 0;
+    }
+
+#ifdef _WIN32
+    // Check for drive root (e.g., "C:" or "C:\")
+    if (len >= 2 && ((p[0] >= 'A' && p[0] <= 'Z') || (p[0] >= 'a' && p[0] <= 'z')) && p[1] == ':') {
+        if (len == 2) {
+            return 1; // "C:"
+        }
+        if (len == 3 && (p[2] == '\\' || p[2] == '/')) {
+            return 1; // "C:\"
+        }
+    }
+    // Check for UNC root
+    if (len >= 2 && p[0] == '\\' && p[1] == '\\') {
+        return 1;
+    }
+#else
+    // Check for Unix root "/"
+    if (len == 1 && p[0] == '/') {
+        return 1;
+    }
+#endif
+
+    return 0;
+}
+
 rs_result_t rs_dir_create_all(rs_string_view_t path, rs_file_mode_t mode)
 {
     // Normalize path first
@@ -76,7 +109,8 @@ rs_result_t rs_dir_create_all(rs_string_view_t path, rs_file_mode_t mode)
     rs_path_dirname(&parent, rs_sv_from_string(&normalized));
 
     // Recursively create parent if it doesn't exist
-    if (!rs_string_eq_cstr(&parent, ".") && !rs_string_eq_cstr(&parent, "/") &&
+    // Don't recurse if parent is ".", root ("/"), or a Windows drive root
+    if (!rs_string_eq_cstr(&parent, ".") && !is_root_path(rs_sv_from_string(&parent)) &&
         !rs_dir_exists(rs_sv_from_string(&parent))) {
         rs_result_t result = rs_dir_create_all(rs_sv_from_string(&parent), mode);
         if (result != RS_OK) {

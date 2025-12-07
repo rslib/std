@@ -100,8 +100,7 @@ void rs_set_error_va(rs_result_t code, const char *file, int line, const char *f
         vsnprintf(g_error_ctx.message, sizeof(g_error_ctx.message), fmt, args);
     } else {
         // No custom message, use default error string
-        strncpy(g_error_ctx.message, rs_error_string(code), sizeof(g_error_ctx.message) - 1);
-        g_error_ctx.message[sizeof(g_error_ctx.message) - 1] = '\0';
+        snprintf(g_error_ctx.message, sizeof(g_error_ctx.message), "%s", rs_error_string(code));
     }
 
     g_error_set = true;

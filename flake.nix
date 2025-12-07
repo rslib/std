@@ -139,6 +139,8 @@
             echo "rs_std development environment"
             echo "Run 'cmake --preset=dev' to configure"
             echo "Run 'cmake --build build' to build"
+            echo "Run 'cmake --install build' to install (required for package tests)"
+            echo "Run 'ctest --test-dir build' to test"
             echo "Run 'treefmt' to format all files"
           '';
         };

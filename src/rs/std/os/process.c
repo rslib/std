@@ -10,6 +10,9 @@
 #ifdef _WIN32
 #include <process.h>
 #include <windows.h>
+// Windows uses _popen/_pclose instead of popen/pclose
+#define popen _popen
+#define pclose _pclose
 #else
 #include <signal.h>
 #include <sys/select.h>
@@ -489,8 +492,9 @@ static char *win32_build_cmdline(const rs_string_view_t *argv, rs_size_t argc)
         if (i > 0) {
             *p++ = ' ';
         }
-        strcpy(p, quoted_args[i]);
-        p += strlen(quoted_args[i]);
+        size_t arg_len = strlen(quoted_args[i]);
+        memcpy(p, quoted_args[i], arg_len);
+        p += arg_len;
         free(quoted_args[i]);
     }
     *p = '\0';
@@ -735,7 +739,10 @@ rs_process_t *rs_process_spawn(const rs_string_view_t *argv, rs_size_t argc, con
         if (opts->working_dir.len > 0) {
             char *cwd = rs_sv_to_cstr(opts->working_dir);
             if (cwd) {
-                chdir(cwd);
+                if (chdir(cwd) != 0) {
+                    free(cwd);
+                    _exit(126); // Exit with error if chdir fails
+                }
                 free(cwd);
             }
         }

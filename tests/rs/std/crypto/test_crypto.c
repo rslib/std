@@ -244,9 +244,10 @@ void test_crypto_decrypt_corrupted(void)
 
     // Encrypt
     rs_crypto_encrypt(&ciphertext, rs_sv_from_cstr("secret"), key);
+    TEST_ASSERT_TRUE(rs_string_len(&ciphertext) > RS_CRYPTO_NONCE_SIZE + 2);
 
     // Corrupt one byte in the middle
-    char *data = (char *)rs_string_cstr(&ciphertext);
+    char *data = rs_string_data_mut(&ciphertext);
     data[RS_CRYPTO_NONCE_SIZE + 2] ^= 0xFF;
 
     // Decrypt should fail (authentication error)

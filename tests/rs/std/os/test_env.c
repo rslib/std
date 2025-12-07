@@ -251,7 +251,12 @@ static void foreach_callback(const char *name, const char *value, void *userdata
     foreach_context_t *ctx = (foreach_context_t *)userdata;
     ctx->count++;
 
+    // Windows env var names are case-insensitive
+#ifdef _WIN32
+    if (_stricmp(name, "PATH") == 0) {
+#else
     if (strcmp(name, "PATH") == 0) {
+#endif
         ctx->found_path = 1;
     }
     if (strcmp(name, "RS_TEST_VAR") == 0 && strcmp(value, "foreach_test") == 0) {
@@ -298,7 +303,12 @@ void test_env_get_all(void)
     for (rs_size_t i = 0; i < count; i++) {
         rs_env_pair_t *pair = (rs_env_pair_t *)rs_array_get(&pairs, i);
 
+        // Windows env var names are case-insensitive
+#ifdef _WIN32
+        if (_stricmp(rs_string_cstr(&pair->name), "PATH") == 0) {
+#else
         if (rs_string_eq_cstr(&pair->name, "PATH")) {
+#endif
             found_path = 1;
             TEST_ASSERT_TRUE(rs_string_len(&pair->value) > 0);
         }

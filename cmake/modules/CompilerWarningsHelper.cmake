@@ -70,12 +70,16 @@ function(target_add_warnings)
       -Wdouble-promotion # Warn about implicit double promotion
       -Wformat=2 # Stricter format string checking
       -Wno-format-nonliteral # Allow non-literal format strings (needed for vsnprintf wrappers)
-      -Wno-gnu-zero-variadic-macro-arguments # Allow ##__VA_ARGS__ extension (widely supported)
     )
 
     # Clang-specific warnings
     if(CMAKE_C_COMPILER_ID MATCHES "Clang")
-      list(APPEND WARNING_FLAGS -Wconditional-uninitialized -Wshorten-64-to-32)
+      list(
+        APPEND WARNING_FLAGS
+        -Wconditional-uninitialized
+        -Wshorten-64-to-32
+        -Wno-gnu-zero-variadic-macro-arguments # Allow ##__VA_ARGS__ extension
+      )
     endif()
 
     # GCC-specific warnings

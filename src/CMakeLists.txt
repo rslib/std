@@ -68,6 +68,12 @@ if(RS_STD_BUILD_STATIC)
   )
 endif()
 
+# Platform-specific libraries
+set(RS_STD_PLATFORM_LIBS "")
+if(WIN32)
+  list(APPEND RS_STD_PLATFORM_LIBS bcrypt)
+endif()
+
 rs_create_library(
     NAME rs_std
     NAMESPACE rs
@@ -117,10 +123,12 @@ rs_create_library(
       ${MONOCYPHER_SHARED_TARGET}
       ${XXHASH_SHARED_TARGET}
       ${SQLITE3_SHARED_TARGET}
+      ${RS_STD_PLATFORM_LIBS}
     STATIC_LINK_LIBRARIES
       ${MONOCYPHER_STATIC_TARGET}
       ${XXHASH_STATIC_TARGET}
       ${SQLITE3_STATIC_TARGET}
+      ${RS_STD_PLATFORM_LIBS}
     PUBLIC_INCLUDE_DIRS
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>

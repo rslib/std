@@ -282,21 +282,26 @@ void test_reader_size(void)
 
 void test_read_write_integration(void)
 {
-    const char *temp_file = "/tmp/rs_test_integration.txt";
+    // Use portable temp path
+    rs_string_t temp_file = rs_string_create(.allocator = allocator);
+    rs_path_get_temp(&temp_file);
+    rs_path_append(&temp_file, rs_sv_from_cstr("rs_test_integration.txt"));
+
     const char *data = "Integration test data\nLine 2\nLine 3\n";
 
     // Write data
-    rs_result_t result = rs_io_write_str(rs_sv_from_cstr(temp_file), rs_sv_from_cstr(data));
+    rs_result_t result = rs_io_write_str(rs_sv_from_string(&temp_file), rs_sv_from_cstr(data));
     TEST_ASSERT_EQUAL(RS_OK, result);
 
     // Read it back
     rs_string_t content = rs_string_create(.allocator = allocator);
-    result = rs_io_read_all(rs_sv_from_cstr(temp_file), &content);
+    result = rs_io_read_all(rs_sv_from_string(&temp_file), &content);
     TEST_ASSERT_EQUAL(RS_OK, result);
     TEST_ASSERT_TRUE(rs_string_eq_cstr(&content, data));
 
     rs_string_destroy(&content);
-    remove(temp_file);
+    rs_path_remove(rs_sv_from_string(&temp_file));
+    rs_string_destroy(&temp_file);
 }
 
 // ============================================================================

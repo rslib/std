@@ -185,10 +185,34 @@ function(rs_create_library)
     # Variant-specific libraries
     if("${VARIANT}" STREQUAL "shared" AND LIB_SHARED_LINK_LIBRARIES)
       target_link_libraries(${TARGET_NAME} PUBLIC ${LIB_SHARED_LINK_LIBRARIES})
+      # Add explicit dependencies for MSVC parallel builds
+      foreach(dep ${LIB_SHARED_LINK_LIBRARIES})
+        if(TARGET ${dep})
+          get_target_property(dep_type ${dep} TYPE)
+          get_target_property(dep_aliased ${dep} ALIASED_TARGET)
+          if(dep_aliased)
+            add_dependencies(${TARGET_NAME} ${dep_aliased})
+          elseif(NOT dep_type STREQUAL "INTERFACE_LIBRARY")
+            add_dependencies(${TARGET_NAME} ${dep})
+          endif()
+        endif()
+      endforeach()
     endif()
 
     if("${VARIANT}" STREQUAL "static" AND LIB_STATIC_LINK_LIBRARIES)
       target_link_libraries(${TARGET_NAME} PUBLIC ${LIB_STATIC_LINK_LIBRARIES})
+      # Add explicit dependencies for MSVC parallel builds
+      foreach(dep ${LIB_STATIC_LINK_LIBRARIES})
+        if(TARGET ${dep})
+          get_target_property(dep_type ${dep} TYPE)
+          get_target_property(dep_aliased ${dep} ALIASED_TARGET)
+          if(dep_aliased)
+            add_dependencies(${TARGET_NAME} ${dep_aliased})
+          elseif(NOT dep_type STREQUAL "INTERFACE_LIBRARY")
+            add_dependencies(${TARGET_NAME} ${dep})
+          endif()
+        endif()
+      endforeach()
     endif()
 
     # Include directories
@@ -306,8 +330,26 @@ function(rs_create_library)
         OUTPUT_NAME ${BASE_NAME}
         VERSION ${LIB_VERSION}
         SOVERSION ${PROJECT_VERSION_MAJOR}
+        # Export all symbols on Windows so import library is generated
+        WINDOWS_EXPORT_ALL_SYMBOLS ON
         LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib
+        LIBRARY_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/lib/Debug
+        LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/lib/Release
+        LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO
+          ${CMAKE_BINARY_DIR}/lib/RelWithDebInfo
+        LIBRARY_OUTPUT_DIRECTORY_MINSIZEREL ${CMAKE_BINARY_DIR}/lib/MinSizeRel
         ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib
+        ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/lib/Debug
+        ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/lib/Release
+        ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO
+          ${CMAKE_BINARY_DIR}/lib/RelWithDebInfo
+        ARCHIVE_OUTPUT_DIRECTORY_MINSIZEREL ${CMAKE_BINARY_DIR}/lib/MinSizeRel
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+        RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/bin/Debug
+        RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/bin/Release
+        RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO
+          ${CMAKE_BINARY_DIR}/bin/RelWithDebInfo
+        RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL ${CMAKE_BINARY_DIR}/bin/MinSizeRel
     )
 
     # Add export definition for shared library builds
@@ -353,6 +395,11 @@ function(rs_create_library)
       PROPERTIES
         OUTPUT_NAME ${BASE_NAME}
         ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib
+        ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/lib/Debug
+        ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/lib/Release
+        ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO
+          ${CMAKE_BINARY_DIR}/lib/RelWithDebInfo
+        ARCHIVE_OUTPUT_DIRECTORY_MINSIZEREL ${CMAKE_BINARY_DIR}/lib/MinSizeRel
     )
 
     # Add static definition for static library builds
