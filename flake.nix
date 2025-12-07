@@ -189,20 +189,24 @@
           };
         };
 
-        packages.default = pkgs.stdenv.mkDerivation {
-          pname = "rs_std";
-          version = "0.1.0";
+        packages = {
+          inherit monocypher unity-test;
 
-          src = ./.;
+          default = pkgs.stdenv.mkDerivation {
+            pname = "rs_std";
+            version = "0.1.0";
 
-          inherit buildInputs nativeBuildInputs;
+            src = ./.;
 
-          cmakeFlags = [
-            "-DCMAKE_BUILD_TYPE=Release"
-            "-DRS_STD_BUILD_TESTS=OFF"
-            "-DRS_STD_BUILD_SHARED=ON"
-            "-DRS_STD_BUILD_STATIC=ON"
-          ];
+            inherit buildInputs nativeBuildInputs;
+
+            cmakeFlags = [
+              "-DCMAKE_BUILD_TYPE=Release"
+              "-DRS_STD_BUILD_TESTS=OFF"
+              "-DRS_STD_BUILD_SHARED=ON"
+              "-DRS_STD_BUILD_STATIC=ON"
+            ];
+          };
         };
       }
     );
