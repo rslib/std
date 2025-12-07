@@ -122,7 +122,6 @@ function(rs_create_library)
     set(LIB_NAMESPACE ${LIB_NAME})
   endif()
 
-  # EXPORT_NAME is used for exported target aliases (e.g., rs::std instead of rs_std::shared)
   # If not provided, defaults to NAME
   if(NOT LIB_EXPORT_NAME)
     set(LIB_EXPORT_NAME ${LIB_NAME})
@@ -674,7 +673,6 @@ function(rs_create_unified_library_config)
     set(CFG_NAMESPACE ${CFG_NAME})
   endif()
 
-  # EXPORT_NAME is used for exported target aliases (e.g., rs::std instead of rs_std::shared)
   # If not provided, defaults to NAME
   if(NOT CFG_EXPORT_NAME)
     set(CFG_EXPORT_NAME ${CFG_NAME})
@@ -719,27 +717,27 @@ function(rs_create_unified_library_config)
   )
 
   # Create convenience aliases using NAMESPACE::EXPORT_NAME pattern
-  # e.g., rs::std and rs::std_static (instead of rs_std::shared and rs_std::static)
+  # Note: Exported targets have NAMESPACE prefix, so check for ${CFG_NAMESPACE}::${CFG_NAME}_shared
   string(APPEND CONFIG_CONTENT "# Create convenience aliases\n")
   if(CFG_BUILD_SHARED)
     string(
       APPEND CONFIG_CONTENT
-      "if(TARGET ${CFG_NAME}_shared AND NOT TARGET ${CFG_NAMESPACE}::${CFG_EXPORT_NAME})\n"
+      "if(TARGET ${CFG_NAMESPACE}::${CFG_NAME}_shared AND NOT TARGET ${CFG_NAMESPACE}::${CFG_EXPORT_NAME})\n"
     )
     string(
       APPEND CONFIG_CONTENT
-      "  add_library(${CFG_NAMESPACE}::${CFG_EXPORT_NAME} ALIAS ${CFG_NAME}_shared)\n"
+      "  add_library(${CFG_NAMESPACE}::${CFG_EXPORT_NAME} ALIAS ${CFG_NAMESPACE}::${CFG_NAME}_shared)\n"
     )
     string(APPEND CONFIG_CONTENT "endif()\n")
   endif()
   if(CFG_BUILD_STATIC)
     string(
       APPEND CONFIG_CONTENT
-      "if(TARGET ${CFG_NAME}_static AND NOT TARGET ${CFG_NAMESPACE}::${CFG_EXPORT_NAME}_static)\n"
+      "if(TARGET ${CFG_NAMESPACE}::${CFG_NAME}_static AND NOT TARGET ${CFG_NAMESPACE}::${CFG_EXPORT_NAME}_static)\n"
     )
     string(
       APPEND CONFIG_CONTENT
-      "  add_library(${CFG_NAMESPACE}::${CFG_EXPORT_NAME}_static ALIAS ${CFG_NAME}_static)\n"
+      "  add_library(${CFG_NAMESPACE}::${CFG_EXPORT_NAME}_static ALIAS ${CFG_NAMESPACE}::${CFG_NAME}_static)\n"
     )
     string(APPEND CONFIG_CONTENT "endif()\n")
   endif()
