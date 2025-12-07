@@ -1,5 +1,5 @@
 {
-  description = "rs_std - A C standard library";
+  description = "rs-std - A C standard library";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
