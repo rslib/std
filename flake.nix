@@ -154,7 +154,7 @@
           formatting = treefmtEval.config.build.check self;
           pre-commit-check = pre-commit-check;
           tests = pkgs.stdenv.mkDerivation {
-            pname = "rs_std-tests";
+            pname = "rs-std-tests";
             inherit version;
 
             src = ./.;
@@ -195,8 +195,8 @@
         packages = {
           inherit monocypher unity-test;
 
-          default = pkgs.stdenv.mkDerivation {
-            pname = "rs_std";
+          rs-std = pkgs.stdenv.mkDerivation {
+            pname = "rs-std";
             inherit version;
 
             src = ./.;
@@ -210,7 +210,14 @@
               "-DRS_STD_BUILD_STATIC=ON"
             ];
           };
+
+          default = self.packages.${system}.rs-std;
         };
       }
-    );
+    )
+    // {
+      overlays.default = final: prev: {
+        rs-std = self.packages.${prev.system}.rs-std;
+      };
+    };
 }
