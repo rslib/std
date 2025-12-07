@@ -162,10 +162,20 @@
             ];
 
             cmakeFlags = [
+              "-DCMAKE_BUILD_TYPE=Release"
               "-DRS_STD_BUILD_TESTS=ON"
               "-DRS_STD_BUILD_SHARED=ON"
               "-DRS_STD_BUILD_STATIC=ON"
             ];
+
+            # Set install prefix to TMPDIR for package discovery tests
+            # Also force relative libdir to prevent Nix from using absolute path
+            preConfigure = ''
+              cmakeFlagsArray+=(
+                "-DCMAKE_INSTALL_PREFIX=$TMPDIR/test-install"
+                "-DCMAKE_INSTALL_LIBDIR=lib"
+              )
+            '';
 
             doCheck = true;
             checkPhase = ''
@@ -188,6 +198,7 @@
           inherit buildInputs nativeBuildInputs;
 
           cmakeFlags = [
+            "-DCMAKE_BUILD_TYPE=Release"
             "-DRS_STD_BUILD_TESTS=OFF"
             "-DRS_STD_BUILD_SHARED=ON"
             "-DRS_STD_BUILD_STATIC=ON"

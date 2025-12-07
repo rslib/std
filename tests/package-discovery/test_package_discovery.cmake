@@ -40,19 +40,19 @@ elseif(TEST_TYPE STREQUAL "cmake")
   # Test CMake find_package discovery
   message(STATUS "Testing CMake find_package discovery for ${LIBRARY_NAME}...")
 
-  # Check if unified config file exists
+  # Check if unified config file exists (search both lib and lib64)
   find_file(
     ${LIBRARY_NAME_UPPER}_CONFIG
     NAMES ${LIBRARY_NAME}Config.cmake
     PATHS ${CMAKE_PREFIX_PATH}
-    PATH_SUFFIXES lib/cmake/${LIBRARY_NAME}
+    PATH_SUFFIXES lib/cmake/${LIBRARY_NAME} lib64/cmake/${LIBRARY_NAME}
     NO_DEFAULT_PATH
   )
 
   if(NOT ${LIBRARY_NAME_UPPER}_CONFIG)
     message(
       FATAL_ERROR
-      "CMake discovery failed: ${LIBRARY_NAME}Config.cmake not found in ${CMAKE_PREFIX_PATH}/lib/cmake/${LIBRARY_NAME}"
+      "CMake discovery failed: ${LIBRARY_NAME}Config.cmake not found in ${CMAKE_PREFIX_PATH}/{lib,lib64}/cmake/${LIBRARY_NAME}"
     )
   endif()
 
@@ -69,7 +69,9 @@ elseif(TEST_TYPE STREQUAL "dependency")
     PATHS ${CMAKE_PREFIX_PATH}
     PATH_SUFFIXES
       lib/cmake/${LIBRARY_NAME}
+      lib64/cmake/${LIBRARY_NAME}
       lib/cmake
+      lib64/cmake
       share/cmake/${LIBRARY_NAME}
     NO_DEFAULT_PATH
   )
@@ -118,12 +120,14 @@ elseif(TEST_TYPE STREQUAL "target")
   set(TARGETS_ALIAS_FOUND -1)
 
   if(CHECK_BOTH_VARIANTS)
-    # Check unified config file first
+    # Check unified config file first (search both lib and lib64)
     find_file(
       ${BASE_LIBRARY_NAME_UPPER}_UNIFIED_CONFIG
       NAMES ${BASE_LIBRARY_NAME}Config.cmake
       PATHS ${CMAKE_PREFIX_PATH}
-      PATH_SUFFIXES lib/cmake/${BASE_LIBRARY_NAME}
+      PATH_SUFFIXES
+        lib/cmake/${BASE_LIBRARY_NAME}
+        lib64/cmake/${BASE_LIBRARY_NAME}
       NO_DEFAULT_PATH
     )
 
@@ -147,7 +151,9 @@ elseif(TEST_TYPE STREQUAL "target")
         ${BASE_LIBRARY_NAME_UPPER}_${VARIANT_TO_CHECK}_CONFIG_CHECK
         NAMES ${BASE_LIBRARY_NAME}_${VARIANT_TO_CHECK}Config.cmake
         PATHS ${CMAKE_PREFIX_PATH}
-        PATH_SUFFIXES lib/cmake/${BASE_LIBRARY_NAME}_${VARIANT_TO_CHECK}
+        PATH_SUFFIXES
+          lib/cmake/${BASE_LIBRARY_NAME}_${VARIANT_TO_CHECK}
+          lib64/cmake/${BASE_LIBRARY_NAME}_${VARIANT_TO_CHECK}
         NO_DEFAULT_PATH
       )
 
@@ -180,7 +186,9 @@ elseif(TEST_TYPE STREQUAL "target")
     ${BASE_LIBRARY_NAME_UPPER}_UNIFIED_CONFIG_CHECK
     NAMES ${BASE_LIBRARY_NAME}Config.cmake
     PATHS ${CMAKE_PREFIX_PATH}
-    PATH_SUFFIXES lib/cmake/${BASE_LIBRARY_NAME}
+    PATH_SUFFIXES
+      lib/cmake/${BASE_LIBRARY_NAME}
+      lib64/cmake/${BASE_LIBRARY_NAME}
     NO_DEFAULT_PATH
   )
 
@@ -203,7 +211,9 @@ elseif(TEST_TYPE STREQUAL "target")
     ${BASE_LIBRARY_NAME_UPPER}_${VARIANT}_CONFIG
     NAMES ${BASE_LIBRARY_NAME}_${VARIANT}Config.cmake
     PATHS ${CMAKE_PREFIX_PATH}
-    PATH_SUFFIXES lib/cmake/${BASE_LIBRARY_NAME}_${VARIANT}
+    PATH_SUFFIXES
+      lib/cmake/${BASE_LIBRARY_NAME}_${VARIANT}
+      lib64/cmake/${BASE_LIBRARY_NAME}_${VARIANT}
     NO_DEFAULT_PATH
   )
 
@@ -224,7 +234,9 @@ elseif(TEST_TYPE STREQUAL "target")
     ${BASE_LIBRARY_NAME_UPPER}_${VARIANT}_TARGETS
     NAMES ${BASE_LIBRARY_NAME}_${VARIANT}Targets.cmake
     PATHS ${CMAKE_PREFIX_PATH}
-    PATH_SUFFIXES lib/cmake/${BASE_LIBRARY_NAME}_${VARIANT}
+    PATH_SUFFIXES
+      lib/cmake/${BASE_LIBRARY_NAME}_${VARIANT}
+      lib64/cmake/${BASE_LIBRARY_NAME}_${VARIANT}
     NO_DEFAULT_PATH
   )
 

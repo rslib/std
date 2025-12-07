@@ -52,12 +52,13 @@ foreach(pkg ${RS_STD_PACKAGES})
     # Test pkg-config discovery (skip on Windows - no pkg-config)
     if(NOT WIN32)
         # Test pkg-config discovery (shared)
+        # Note: Search both lib and lib64 for compatibility with different systems
         add_test(
             NAME "PackageDiscovery_${pkg}_pkgconfig"
             COMMAND ${CMAKE_COMMAND}
                 -DTEST_TYPE=pkgconfig
                 -DLIBRARY_NAME=${pkg}
-                -DPKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig
+                -DPKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig:${CMAKE_INSTALL_PREFIX}/lib64/pkgconfig
                 -P ${CMAKE_CURRENT_SOURCE_DIR}/test_package_discovery.cmake
         )
         set_tests_properties("PackageDiscovery_${pkg}_pkgconfig" PROPERTIES FIXTURES_REQUIRED PackagesInstalled)
@@ -68,7 +69,7 @@ foreach(pkg ${RS_STD_PACKAGES})
             COMMAND ${CMAKE_COMMAND}
                 -DTEST_TYPE=pkgconfig
                 -DLIBRARY_NAME=${pkg}_static
-                -DPKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig
+                -DPKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig:${CMAKE_INSTALL_PREFIX}/lib64/pkgconfig
                 -P ${CMAKE_CURRENT_SOURCE_DIR}/test_package_discovery.cmake
         )
         set_tests_properties("PackageDiscovery_${pkg}_static_pkgconfig" PROPERTIES FIXTURES_REQUIRED PackagesInstalled)
