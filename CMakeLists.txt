@@ -8,13 +8,9 @@ if(NOT CMAKE_GENERATOR)
   endif()
 endif()
 
-set(RS_STD_VERSION_MAJOR 0)
-set(RS_STD_VERSION_MINOR 1)
-set(RS_STD_VERSION_PATCH 1)
-set(
-  RS_STD_VERSION
-  "${RS_STD_VERSION_MAJOR}.${RS_STD_VERSION_MINOR}.${RS_STD_VERSION_PATCH}"
-)
+# Read version from VERSION file
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" RS_STD_VERSION)
+string(STRIP "${RS_STD_VERSION}" RS_STD_VERSION)
 
 project(rs_std VERSION ${RS_STD_VERSION} LANGUAGES C)
 
@@ -121,8 +117,14 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/DependencyHelpers.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/Dependencies.cmake)
 
 # ##############################################################################
-# Generate logging configuration header
+# Generate configuration headers
 # ##############################################################################
+
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/rs/std/version.h.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/include/rs/std/version.h"
+  @ONLY
+)
 
 configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/include/rs/std/logging/logging_config.h.in"
@@ -142,6 +144,15 @@ add_subdirectory(src)
 # Install public headers
 install(
   DIRECTORY ${CMAKE_SOURCE_DIR}/include/
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  FILES_MATCHING
+  PATTERN "*.h"
+  PATTERN "*.h.in" EXCLUDE
+)
+
+# Install generated headers
+install(
+  DIRECTORY ${CMAKE_BINARY_DIR}/include/
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   FILES_MATCHING
   PATTERN "*.h"

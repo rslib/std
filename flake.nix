@@ -29,6 +29,9 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
 
+        # Read version from VERSION file
+        version = builtins.replaceStrings [ "\n" ] [ "" ] (builtins.readFile ./VERSION);
+
         # Custom packages
         monocypher = pkgs.callPackage ./nix/monocypher.nix { };
         unity-test = pkgs.callPackage ./nix/unity-test.nix { };
@@ -152,7 +155,7 @@
           pre-commit-check = pre-commit-check;
           tests = pkgs.stdenv.mkDerivation {
             pname = "rs_std-tests";
-            version = "0.1.1";
+            inherit version;
 
             src = ./.;
 
@@ -194,7 +197,7 @@
 
           default = pkgs.stdenv.mkDerivation {
             pname = "rs_std";
-            version = "0.1.1";
+            inherit version;
 
             src = ./.;
 
