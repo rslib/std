@@ -152,7 +152,7 @@
           pre-commit-check = pre-commit-check;
           tests = pkgs.stdenv.mkDerivation {
             pname = "rs_std-tests";
-            version = "0.1.0";
+            version = "0.1.1";
 
             src = ./.;
 
@@ -194,7 +194,7 @@
 
           default = pkgs.stdenv.mkDerivation {
             pname = "rs_std";
-            version = "0.1.0";
+            version = "0.1.1";
 
             src = ./.;
 
