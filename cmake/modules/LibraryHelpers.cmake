@@ -402,11 +402,18 @@ function(rs_create_library)
     )
 
     # Set output name to base name (without _static suffix)
+    # On MSVC, add _static suffix to avoid conflict with import library from shared build
+    # (MinGW uses .dll.a for import libs, so no conflict there)
     get_filename_component(BASE_NAME ${LIB_NAME} NAME)
+    if(MSVC)
+      set(STATIC_OUTPUT_NAME "${BASE_NAME}_static")
+    else()
+      set(STATIC_OUTPUT_NAME "${BASE_NAME}")
+    endif()
     set_target_properties(
       ${STATIC_TARGET_NAME}
       PROPERTIES
-        OUTPUT_NAME ${BASE_NAME}
+        OUTPUT_NAME ${STATIC_OUTPUT_NAME}
         ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib
         ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/lib/Debug
         ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/lib/Release

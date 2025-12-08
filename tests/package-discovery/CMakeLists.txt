@@ -16,10 +16,13 @@ set(RS_STD_PACKAGES
 # Format: "package:target_alias"
 # The exported targets follow the naming pattern:
 #   namespace::export_name, namespace::export_name_static (e.g., rs::std, rs::std_static)
-set(RS_STD_PACKAGE_TARGETS
-    "rs_std:rs::std"
-    "rs_std:rs::std_static"
-)
+set(RS_STD_PACKAGE_TARGETS "")
+if(RS_STD_BUILD_SHARED)
+  list(APPEND RS_STD_PACKAGE_TARGETS "rs_std:rs::std")
+endif()
+if(RS_STD_BUILD_STATIC)
+  list(APPEND RS_STD_PACKAGE_TARGETS "rs_std:rs::std_static")
+endif()
 
 message(STATUS "")
 message(STATUS "========================================")
@@ -52,26 +55,30 @@ foreach(pkg ${RS_STD_PACKAGES})
     if(NOT WIN32)
         # Test pkg-config discovery (shared)
         # Note: Search both lib and lib64 for compatibility with different systems
-        add_test(
-            NAME "PackageDiscovery_${pkg}_pkgconfig"
-            COMMAND ${CMAKE_COMMAND}
-                -DTEST_TYPE=pkgconfig
-                -DLIBRARY_NAME=${pkg}
-                -DPKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig:${CMAKE_INSTALL_PREFIX}/lib64/pkgconfig
-                -P ${CMAKE_CURRENT_SOURCE_DIR}/test_package_discovery.cmake
-        )
-        set_tests_properties("PackageDiscovery_${pkg}_pkgconfig" PROPERTIES FIXTURES_REQUIRED PackagesInstalled)
+        if(RS_STD_BUILD_SHARED)
+            add_test(
+                NAME "PackageDiscovery_${pkg}_pkgconfig"
+                COMMAND ${CMAKE_COMMAND}
+                    -DTEST_TYPE=pkgconfig
+                    -DLIBRARY_NAME=${pkg}
+                    -DPKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig:${CMAKE_INSTALL_PREFIX}/lib64/pkgconfig
+                    -P ${CMAKE_CURRENT_SOURCE_DIR}/test_package_discovery.cmake
+            )
+            set_tests_properties("PackageDiscovery_${pkg}_pkgconfig" PROPERTIES FIXTURES_REQUIRED PackagesInstalled)
+        endif()
 
         # Test pkg-config discovery (static)
-        add_test(
-            NAME "PackageDiscovery_${pkg}_static_pkgconfig"
-            COMMAND ${CMAKE_COMMAND}
-                -DTEST_TYPE=pkgconfig
-                -DLIBRARY_NAME=${pkg}_static
-                -DPKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig:${CMAKE_INSTALL_PREFIX}/lib64/pkgconfig
-                -P ${CMAKE_CURRENT_SOURCE_DIR}/test_package_discovery.cmake
-        )
-        set_tests_properties("PackageDiscovery_${pkg}_static_pkgconfig" PROPERTIES FIXTURES_REQUIRED PackagesInstalled)
+        if(RS_STD_BUILD_STATIC)
+            add_test(
+                NAME "PackageDiscovery_${pkg}_static_pkgconfig"
+                COMMAND ${CMAKE_COMMAND}
+                    -DTEST_TYPE=pkgconfig
+                    -DLIBRARY_NAME=${pkg}_static
+                    -DPKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig:${CMAKE_INSTALL_PREFIX}/lib64/pkgconfig
+                    -P ${CMAKE_CURRENT_SOURCE_DIR}/test_package_discovery.cmake
+            )
+            set_tests_properties("PackageDiscovery_${pkg}_static_pkgconfig" PROPERTIES FIXTURES_REQUIRED PackagesInstalled)
+        endif()
     endif()
 endforeach()
 
