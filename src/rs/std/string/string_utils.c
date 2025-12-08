@@ -113,6 +113,13 @@ rs_size_t rs_string_replace_all(rs_string_t *str, rs_string_view_t old, rs_strin
 
     // First, count occurrences to calculate final size
     rs_size_t str_len = rs_string_len(str);
+
+    // Early return if pattern is longer than string (avoid unsigned underflow)
+    if (old_len > str_len) {
+        RS_TRACE_END();
+        return 0;
+    }
+
     const char *str_data = rs_string_cstr(str);
 
     for (rs_size_t i = 0; i <= str_len - old_len;) {
