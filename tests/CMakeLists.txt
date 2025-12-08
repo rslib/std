@@ -96,3 +96,79 @@ endfunction()
 
 add_subdirectory(rs/std)
 add_subdirectory(package-discovery)
+
+# ##############################################################################
+# Fuzz Testing Support (libFuzzer)
+# ##############################################################################
+
+#[=[
+Helper function to create a fuzz test executable with libFuzzer
+
+Usage:
+  rs_add_fuzz_test(
+    NAME fuzz_name
+    SOURCES source1.c ...
+    [DEPENDENCIES dep1 dep2 ...]
+  )
+
+This function:
+- Creates an executable with the given name and sources
+- Links to rs::std
+- Adds libFuzzer + ASAN instrumentation
+- Registers as a CTest (runs with 60 second timeout)
+#]=]
+function(rs_add_fuzz_test)
+  set(options "")
+  set(oneValueArgs NAME)
+  set(multiValueArgs SOURCES DEPENDENCIES)
+
+  cmake_parse_arguments(TEST "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+
+  if(NOT TEST_NAME)
+    message(FATAL_ERROR "rs_add_fuzz_test: NAME is required")
+  endif()
+
+  if(NOT TEST_SOURCES)
+    message(FATAL_ERROR "rs_add_fuzz_test: SOURCES is required")
+  endif()
+
+  # Create fuzz test executable
+  add_executable(${TEST_NAME} ${TEST_SOURCES})
+
+  # Link to rs_std
+  target_link_libraries(${TEST_NAME} PRIVATE rs::std)
+
+  # libFuzzer + ASAN instrumentation
+  target_compile_options(${TEST_NAME} PRIVATE -fsanitize=fuzzer,address -g)
+  target_link_options(${TEST_NAME} PRIVATE -fsanitize=fuzzer,address)
+
+  # Link additional dependencies
+  if(TEST_DEPENDENCIES)
+    foreach(dep ${TEST_DEPENDENCIES})
+      rs_link_dependency(TARGET ${TEST_NAME} DEPENDENCY ${dep})
+    endforeach()
+  endif()
+
+  # Add compiler warnings
+  target_add_warnings(TARGET ${TEST_NAME})
+
+  # Get corpus directory in build tree (created by fuzz/CMakeLists.txt)
+  # CMAKE_CURRENT_BINARY_DIR is already the fuzz dir when called from fuzz/CMakeLists.txt
+  set(CORPUS_DIR "${CMAKE_CURRENT_BINARY_DIR}/corpus/${TEST_NAME}")
+
+  # Register with CTest - 60 second timeout
+  add_test(
+    NAME ${TEST_NAME}
+    COMMAND ${TEST_NAME} ${CORPUS_DIR} -max_total_time=60 -print_final_stats=1
+  )
+  set_tests_properties(${TEST_NAME} PROPERTIES TIMEOUT 120)
+endfunction()
+
+# Only build fuzz tests when enabled and using Clang
+if(RS_STD_BUILD_FUZZ_TESTS)
+  if(NOT CMAKE_C_COMPILER_ID MATCHES "Clang")
+    message(WARNING "Fuzz testing requires Clang, skipping fuzz tests")
+  else()
+    add_subdirectory(fuzz)
+  endif()
+endif()

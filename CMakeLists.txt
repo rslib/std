@@ -62,6 +62,7 @@ option(
 )
 option(RS_STD_ENABLE_ASAN "Enable AddressSanitizer for debugging" OFF)
 option(RS_STD_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
+option(RS_STD_BUILD_FUZZ_TESTS "Build fuzz tests (requires Clang)" OFF)
 
 # Logging options
 option(RS_STD_ENABLE_LOGGING "Enable logging system" ON)
@@ -89,14 +90,27 @@ set_property(
 
 if(RS_STD_ENABLE_ASAN)
   message(STATUS "AddressSanitizer enabled")
-  add_compile_options(-fsanitize=address -fno-omit-frame-pointer -g)
-  add_link_options(-fsanitize=address)
+  if(MSVC)
+    # MSVC uses different syntax for ASAN
+    add_compile_options(/fsanitize=address /Zi)
+    # MSVC ASAN doesn't need link options, runtime is linked automatically
+  else()
+    add_compile_options(-fsanitize=address -fno-omit-frame-pointer -g)
+    add_link_options(-fsanitize=address)
+  endif()
 endif()
 
 if(RS_STD_ENABLE_UBSAN)
-  message(STATUS "UndefinedBehaviorSanitizer enabled")
-  add_compile_options(-fsanitize=undefined -fno-omit-frame-pointer -g)
-  add_link_options(-fsanitize=undefined)
+  if(MSVC)
+    message(
+      WARNING
+      "UndefinedBehaviorSanitizer not supported on MSVC, skipping"
+    )
+  else()
+    message(STATUS "UndefinedBehaviorSanitizer enabled")
+    add_compile_options(-fsanitize=undefined -fno-omit-frame-pointer -g)
+    add_link_options(-fsanitize=undefined)
+  endif()
 endif()
 
 # ##############################################################################

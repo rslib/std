@@ -1,0 +1,25 @@
+# ==============================================================================
+# rs_std Fuzz Tests (libFuzzer)
+# ==============================================================================
+
+# Create corpus directories in build tree (not source tree)
+set(FUZZ_CORPUS_DIR "${CMAKE_CURRENT_BINARY_DIR}/corpus")
+file(MAKE_DIRECTORY "${FUZZ_CORPUS_DIR}/fuzz_base64")
+file(MAKE_DIRECTORY "${FUZZ_CORPUS_DIR}/fuzz_string")
+file(MAKE_DIRECTORY "${FUZZ_CORPUS_DIR}/fuzz_string_view")
+file(MAKE_DIRECTORY "${FUZZ_CORPUS_DIR}/fuzz_zstring_view")
+file(MAKE_DIRECTORY "${FUZZ_CORPUS_DIR}/fuzz_string_utils")
+file(MAKE_DIRECTORY "${FUZZ_CORPUS_DIR}/fuzz_array")
+file(MAKE_DIRECTORY "${FUZZ_CORPUS_DIR}/fuzz_hashmap")
+file(MAKE_DIRECTORY "${FUZZ_CORPUS_DIR}/fuzz_crypto")
+file(MAKE_DIRECTORY "${FUZZ_CORPUS_DIR}/fuzz_path")
+
+rs_add_fuzz_test(NAME fuzz_base64 SOURCES fuzz_base64.c)
+rs_add_fuzz_test(NAME fuzz_string SOURCES fuzz_string.c)
+rs_add_fuzz_test(NAME fuzz_string_view SOURCES fuzz_string_view.c)
+rs_add_fuzz_test(NAME fuzz_zstring_view SOURCES fuzz_zstring_view.c)
+rs_add_fuzz_test(NAME fuzz_string_utils SOURCES fuzz_string_utils.c)
+rs_add_fuzz_test(NAME fuzz_array SOURCES fuzz_array.c)
+rs_add_fuzz_test(NAME fuzz_hashmap SOURCES fuzz_hashmap.c)
+rs_add_fuzz_test(NAME fuzz_crypto SOURCES fuzz_crypto.c)
+rs_add_fuzz_test(NAME fuzz_path SOURCES fuzz_path.c)

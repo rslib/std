@@ -88,6 +88,16 @@
       "cacheVariables": {
         "RS_STD_ENABLE_UBSAN": "ON"
       }
+    },
+    {
+      "name": "test-fuzz",
+      "displayName": "Fuzz Testing (libFuzzer)",
+      "inherits": "test",
+      "cacheVariables": {
+        "RS_STD_BUILD_FUZZ_TESTS": "ON",
+        "RS_STD_ENABLE_ASAN": "ON",
+        "CMAKE_C_COMPILER": "clang"
+      }
     }
   ],
   "buildPresets": [
@@ -114,6 +124,10 @@
     {
       "name": "test-ubsan",
       "configurePreset": "test-ubsan"
+    },
+    {
+      "name": "test-fuzz",
+      "configurePreset": "test-fuzz"
     }
   ],
   "testPresets": [
@@ -134,6 +148,13 @@
     {
       "name": "test-ubsan",
       "configurePreset": "test-ubsan",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "test-fuzz",
+      "configurePreset": "test-fuzz",
       "output": {
         "outputOnFailure": true
       }
