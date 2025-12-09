@@ -108,6 +108,20 @@
 #endif
 
 // ============================================================================
+// Array utilities
+// ============================================================================
+
+/**
+ * Get the number of elements in a static array.
+ * Only works with actual arrays, not pointers!
+ *
+ * Usage:
+ *   int arr[] = {1, 2, 3};
+ *   rs_size_t len = RS_ARRAYLEN(arr);  // 3
+ */
+#define RS_ARRAYLEN(arr) (sizeof(arr) / sizeof((arr)[0]))
+
+// ============================================================================
 // Development helpers
 // ============================================================================
 

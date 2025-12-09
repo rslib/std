@@ -51,6 +51,19 @@ typedef struct {
 // ============================================================================
 
 /**
+ * Create view from string literal at compile time.
+ *
+ * WARNING: Only use with string literals, not variables!
+ * sizeof() on a pointer returns pointer size, not string length.
+ *
+ * Example:
+ *   rs_string_view_t name = RS_SV_LIT("hello");  // OK
+ *   const char *s = "hello";
+ *   rs_string_view_t bad = RS_SV_LIT(s);         // WRONG! Use rs_sv_from_cstr()
+ */
+#define RS_SV_LIT(str) ((rs_string_view_t){.data = (str), .len = sizeof(str) - 1})
+
+/**
  * Create view from C string.
  */
 RS_STD_API rs_string_view_t rs_sv_from_cstr(const char *cstr);
