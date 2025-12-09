@@ -124,10 +124,39 @@ set(
   ${CMAKE_BINARY_DIR}
   ${CMAKE_INSTALL_PREFIX}
 )
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/CPM.cmake)
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/CompilerWarningsHelper.cmake)
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/LibraryHelpers.cmake)
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/DependencyHelpers.cmake)
+
+# Fetch rs-cmake modules (use local path or FetchContent)
+# Priority: 1) RS_CMAKE_LOCAL_PATH if set, 2) local ../cmake, 3) FetchContent
+set(
+  RS_CMAKE_LOCAL_PATH
+  "${CMAKE_CURRENT_SOURCE_DIR}/../cmake"
+  CACHE PATH
+  "Local path to rs-cmake"
+)
+if(EXISTS "${RS_CMAKE_LOCAL_PATH}/CPM.cmake")
+  # Nix-installed or direct path to modules directory
+  set(RS_CMAKE_MODULE_DIR "${RS_CMAKE_LOCAL_PATH}")
+  message(STATUS "Using rs-cmake from: ${RS_CMAKE_MODULE_DIR}")
+elseif(EXISTS "${RS_CMAKE_LOCAL_PATH}/cmake/CPM.cmake")
+  # Local development (../cmake with cmake/ subdirectory)
+  set(RS_CMAKE_MODULE_DIR "${RS_CMAKE_LOCAL_PATH}/cmake")
+  message(STATUS "Using local rs-cmake from: ${RS_CMAKE_MODULE_DIR}")
+else()
+  include(FetchContent)
+  FetchContent_Declare(
+    rs-cmake
+    GIT_REPOSITORY https://github.com/rslib/cmake.git
+    GIT_TAG develop
+  )
+  FetchContent_MakeAvailable(rs-cmake)
+  set(RS_CMAKE_MODULE_DIR "${rs-cmake_SOURCE_DIR}/cmake")
+  message(STATUS "Fetched rs-cmake from GitHub")
+endif()
+
+include(${RS_CMAKE_MODULE_DIR}/CPM.cmake)
+include(${RS_CMAKE_MODULE_DIR}/CompilerWarningsHelper.cmake)
+include(${RS_CMAKE_MODULE_DIR}/LibraryHelpers.cmake)
+include(${RS_CMAKE_MODULE_DIR}/DependencyHelpers.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/Dependencies.cmake)
 
 # ##############################################################################

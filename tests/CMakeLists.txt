@@ -76,7 +76,7 @@ function(rs_add_test)
   endif()
 
   # Add compiler warnings (less strict for tests)
-  target_add_warnings(TARGET ${TEST_NAME})
+  rs_target_add_warnings(TARGET ${TEST_NAME})
   # Disable some pedantic warnings that are noisy in test code
   if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(${TEST_NAME} PRIVATE
@@ -150,7 +150,7 @@ function(rs_add_fuzz_test)
   endif()
 
   # Add compiler warnings
-  target_add_warnings(TARGET ${TEST_NAME})
+  rs_target_add_warnings(TARGET ${TEST_NAME})
 
   # Get corpus directory in build tree (created by fuzz/CMakeLists.txt)
   # CMAKE_CURRENT_BINARY_DIR is already the fuzz dir when called from fuzz/CMakeLists.txt

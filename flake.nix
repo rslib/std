@@ -5,6 +5,8 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
 
+    rs-cmake.url = "github:rslib/cmake";
+
     treefmt-nix = {
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -16,11 +18,19 @@
     };
   };
 
+  nixConfig = {
+    extra-substituters = [ "https://rslib.cachix.org" ];
+    extra-trusted-public-keys = [
+      "rslib.cachix.org-1:8OHneG2sLeTDlsZ4AZyNh8zx2zAwoiZUKVPnl21B+58="
+    ];
+  };
+
   outputs =
     {
       self,
       nixpkgs,
       flake-utils,
+      rs-cmake,
       treefmt-nix,
       pre-commit-hooks,
     }:
@@ -139,7 +149,7 @@
 
           shellHook = ''
             ${pre-commit-check.shellHook}
-            echo "rs_std development environment"
+            echo "rs-std development environment"
             echo "Run 'cmake --preset=dev' to configure"
             echo "Run 'cmake --build build' to build"
             echo "Run 'cmake --install build' to install (required for package tests)"
@@ -169,6 +179,7 @@
               "-DRS_STD_BUILD_TESTS=ON"
               "-DRS_STD_BUILD_SHARED=ON"
               "-DRS_STD_BUILD_STATIC=ON"
+              "-DRS_CMAKE_LOCAL_PATH=${rs-cmake.packages.${system}.rs-cmake}/share/cmake/rs-cmake"
             ];
 
             # Set install prefix to TMPDIR for package discovery tests
@@ -208,6 +219,7 @@
               "-DRS_STD_BUILD_TESTS=OFF"
               "-DRS_STD_BUILD_SHARED=ON"
               "-DRS_STD_BUILD_STATIC=ON"
+              "-DRS_CMAKE_LOCAL_PATH=${rs-cmake.packages.${system}.rs-cmake}/share/cmake/rs-cmake"
             ];
           };
 
