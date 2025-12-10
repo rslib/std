@@ -35,20 +35,19 @@ typedef struct {
         // Large string: heap-allocated
         // The MSB of cap (at offset 23 on little-endian) is the large flag (1 = large)
         struct {
-            char *data;                // offset 0-7: Heap-allocated data
-            rs_size_t len;             // offset 8-15: Length
-            rs_size_t cap;             // offset 16-23: Capacity (MSB is large flag)
-            rs_allocator_t *allocator; // offset 24-31: Allocator
+            char *data;    // offset 0-7: Heap-allocated data
+            rs_size_t len; // offset 8-15: Length
+            rs_size_t cap; // offset 16-23: Capacity (MSB is large flag)
         } large;
 
         // Small string: inline storage
-        // Allocator is at same offset as large.allocator for unified access
         struct {
-            char buf[23];              // offset 0-22: Inline buffer (22 chars + null)
-            unsigned char len;         // offset 23: Length (MSB=0 means small string)
-            rs_allocator_t *allocator; // offset 24-31: Allocator (same position as large)
+            char buf[23];      // offset 0-22: Inline buffer (22 chars + null)
+            unsigned char len; // offset 23: Length (MSB=0 means small string)
         } small;
     } u;
+
+    rs_allocator_t *allocator; // offset 24-31: Allocator
 } rs_string_t;
 
 // SSO threshold: 22 characters (23-byte buffer minus null terminator)
@@ -291,12 +290,10 @@ static inline rs_bool rs_string_is_empty(const rs_string_t *str)
 
 /**
  * Get allocator from string.
- * The allocator is always stored at offset 24, accessible in both SSO and large modes.
  */
 static inline rs_allocator_t *rs_string_get_allocator(const rs_string_t *str)
 {
-    // Allocator is at the same offset in both small and large layouts
-    return str->u.small.allocator;
+    return str->allocator;
 }
 
 // ============================================================================

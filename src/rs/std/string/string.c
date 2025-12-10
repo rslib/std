@@ -58,7 +58,7 @@ void rs_string_init_with_options(rs_string_t *str, rs_string_options_t opts)
     if (opts.initial_capacity <= RS_STRING_SSO_CAP) {
         set_small_len(str, 0);
         str->u.small.buf[0] = '\0';
-        str->u.small.allocator = allocator;
+        str->allocator = allocator;
     } else {
         // Allocate on heap
         str->u.large.data = (char *)rs_alloc(allocator, opts.initial_capacity + 1);
@@ -66,14 +66,14 @@ void rs_string_init_with_options(rs_string_t *str, rs_string_options_t opts)
             // Fall back to SSO on allocation failure
             set_small_len(str, 0);
             str->u.small.buf[0] = '\0';
-            str->u.small.allocator = allocator;
+            str->allocator = allocator;
             RS_TRACE_END();
             return;
         }
         str->u.large.data[0] = '\0';
         str->u.large.len = 0;
         str->u.large.cap = opts.initial_capacity;
-        str->u.large.allocator = allocator;
+        str->allocator = allocator;
         mark_as_large(str);
     }
 
@@ -127,7 +127,7 @@ void rs_string_init_from_buf_with_options(rs_string_t *str, const char *buf, rs_
             memcpy(str->u.small.buf, buf, len);
         }
         str->u.small.buf[len] = '\0';
-        str->u.small.allocator = allocator;
+        str->allocator = allocator;
     } else {
         // Allocate on heap
         str->u.large.data = (char *)rs_alloc(allocator, len + 1);
@@ -142,7 +142,7 @@ void rs_string_init_from_buf_with_options(rs_string_t *str, const char *buf, rs_
         str->u.large.data[len] = '\0';
         str->u.large.len = len;
         str->u.large.cap = len;
-        str->u.large.allocator = allocator;
+        str->allocator = allocator;
         mark_as_large(str);
     }
 
@@ -167,7 +167,7 @@ rs_string_t rs_string_clone(const rs_string_t *str)
         return *str;
     } else {
         // Large string: deep copy
-        rs_string_t str2 = rs_string_from_buf(str->u.large.data, str->u.large.len, .allocator = str->u.large.allocator);
+        rs_string_t str2 = rs_string_from_buf(str->u.large.data, str->u.large.len, .allocator = str->allocator);
         RS_TRACE_END();
         return str2;
     }
@@ -179,7 +179,7 @@ void rs_string_destroy(rs_string_t *str)
     if (!rs_string_is_small(str) && str->u.large.data) {
         // Mask off the large flag when reading cap for free
         rs_size_t cap = str->u.large.cap & RS_STRING_CAP_MASK;
-        rs_free(str->u.large.allocator, str->u.large.data, cap + 1);
+        rs_free(str->allocator, str->u.large.data, cap + 1);
         str->u.large.data = NULL;
         str->u.large.len = 0;
         str->u.large.cap = 0;
@@ -211,8 +211,7 @@ rs_result_t rs_string_reserve(rs_string_t *str, rs_size_t additional)
 
     if (rs_string_is_small(str)) {
         // Transitioning from small to large
-        // Allocator is stored at same offset in both layouts
-        rs_allocator_t *allocator = str->u.small.allocator;
+        rs_allocator_t *allocator = str->allocator;
         char *new_data = (char *)rs_alloc(allocator, new_cap + 1);
         if (!new_data) {
             RS_TRACE_END();
@@ -223,17 +222,16 @@ rs_result_t rs_string_reserve(rs_string_t *str, rs_size_t additional)
         memcpy(new_data, str->u.small.buf, current_len);
         new_data[current_len] = '\0';
 
-        // Convert to large string (allocator already at correct offset)
+        // Convert to large string
         str->u.large.data = new_data;
         str->u.large.len = current_len;
         str->u.large.cap = new_cap;
-        // str->u.large.allocator is already set (same memory location as small.allocator)
         mark_as_large(str);
     } else {
         // Already large, just realloc
         // Mask off the large flag when reading cap for realloc
         rs_size_t old_cap = str->u.large.cap & RS_STRING_CAP_MASK;
-        char *new_data = (char *)rs_realloc(str->u.large.allocator, str->u.large.data, old_cap + 1, new_cap + 1);
+        char *new_data = (char *)rs_realloc(str->allocator, str->u.large.data, old_cap + 1, new_cap + 1);
         if (!new_data) {
             RS_TRACE_END();
             return RS_ERROR_RET(RS_ERR_NOMEM, "Failed to reallocate string to %zu bytes (cap: %zu -> %zu)", new_cap + 1,
