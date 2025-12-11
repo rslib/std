@@ -107,4 +107,18 @@ typedef struct {
     int line;          // Line number where error occurred
 } rs_error_t;
 
+// ============================================================================
+// Function types
+// ============================================================================
+
+/**
+ * Comparison function type for sorting and searching.
+ *
+ * @param a First element to compare
+ * @param b Second element to compare
+ * @param user_data User-provided context (can be NULL)
+ * @return < 0 if a < b, 0 if a == b, > 0 if a > b
+ */
+typedef int (*rs_compare_fn)(const void *a, const void *b, void *user_data);
+
 RS_EXTERN_C_END

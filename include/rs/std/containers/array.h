@@ -7,18 +7,6 @@
 RS_EXTERN_C_BEGIN
 
 /**
- * Comparator function for array elements.
- *
- * @param a First element to compare
- * @param b Second element to compare
- * @param user_data Optional user data passed to the comparator
- * @return < 0 if a < b, 0 if a == b, > 0 if a > b
- *
- * This follows the standard qsort comparator convention.
- */
-typedef int (*rs_compare_fn)(const void *a, const void *b, void *user_data);
-
-/**
  * Generic dynamic array (growable, type-erased).
  *
  * Properties:

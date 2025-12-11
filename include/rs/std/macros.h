@@ -122,6 +122,34 @@
 #define RS_ARRAYLEN(arr) (sizeof(arr) / sizeof((arr)[0]))
 
 // ============================================================================
+// Pointer utilities
+// ============================================================================
+
+#include <stddef.h>
+
+/**
+ * Get pointer to the containing struct from a pointer to a member.
+ *
+ * This is useful for intrusive data structures where a struct embeds
+ * a node type (like a linked list node) and you need to get back to
+ * the containing struct from the node pointer.
+ *
+ * @param ptr    Pointer to the member
+ * @param type   Type of the containing struct
+ * @param member Name of the member within the struct
+ *
+ * Usage:
+ *   typedef struct {
+ *       int id;
+ *       rs_list_t link;
+ *   } my_item_t;
+ *
+ *   rs_list_t *node = ...;
+ *   my_item_t *item = RS_CONTAINER_OF(node, my_item_t, link);
+ */
+#define RS_CONTAINER_OF(ptr, type, member) ((type *)(void *)((char *)(ptr) - offsetof(type, member)))
+
+// ============================================================================
 // Development helpers
 // ============================================================================
 

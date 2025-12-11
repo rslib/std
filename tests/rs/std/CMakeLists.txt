@@ -100,6 +100,12 @@ rs_add_test(
     SOURCES containers/test_hashmap.c
 )
 
+# Test: Intrusive linked list
+rs_add_test(
+    NAME test_list
+    SOURCES containers/test_list.c
+)
+
 # ------------------------------------------------------------------------------
 # Operating System tests
 # ------------------------------------------------------------------------------
