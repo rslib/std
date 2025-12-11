@@ -99,6 +99,7 @@ rs_create_library(
         rs/std/containers/slice.c
         rs/std/containers/hash.c
         rs/std/containers/hashmap.c
+        rs/std/containers/list.c
         # Operating System
         rs/std/os/env.c
         rs/std/os/detect.c
